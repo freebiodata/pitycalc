@@ -1,0 +1,387 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import ProbabilityChart from '../components/ProbabilityChart.astro';
+import Breadcrumbs from '../components/Breadcrumbs.astro';
+import FAQItem from '../components/FAQItem.astro';
+import Icon from '../components/Icon.astro';
+import { RATES_SNAPSHOT } from '../lib/site';
+import { defaultParams, wishesForConfidence, worstCaseWishes, fmtInt } from '../lib/pity';
+
+// Reference table computed at build time with the exact same engine the client uses.
+const scenarios = [
+  { label: 'Character banner - fresh 50/50', params: defaultParams('character') },
+  { label: 'Character banner - guaranteed next 5★', params: { ...defaultParams('character'), state: 'guaranteed' as const } },
+  { label: 'Weapon banner - Epitomized Path, no fate points', params: defaultParams('weapon') },
+  { label: 'Weapon banner - 1 fate point banked', params: { ...defaultParams('weapon'), fatePoints: 1 as const } },
+  { label: 'Standard banner - any 5★', params: { ...defaultParams('standard'), epitomized: false } },
+];
+const refRows = scenarios.map((s) => ({
+  label: s.label,
+  p50: wishesForConfidence(s.params, 0.5),
+  p90: wishesForConfidence(s.params, 0.9),
+  p99: wishesForConfidence(s.params, 0.99),
+  worst: worstCaseWishes(s.params),
+}));
+
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'WebApplication',
+    name: 'Genshin Wishes Needed Calculator',
+    applicationCategory: 'GameToolApplication',
+    operatingSystem: 'Any',
+    url: 'https://pitycalc.top/wishes-needed/',
+    description:
+      'How many wishes do you need for a 50%, 90% or 99% chance - or a hard guarantee - of a Genshin Impact 5★? Exact answers for character, weapon and standard banners.',
+    offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+  },
+];
+---
+
+<BaseLayout
+  title="How Many Wishes for a Guaranteed 5★? (50% · 90% · 99% Confidence)"
+  description={`How many Genshin wishes do you need? Exact answers for 50%, 90%, 99% confidence and hard guarantees: 180 for a guaranteed character, 160 for your weapon, ~80 for a 90% 5★. Snapshot ${RATES_SNAPSHOT}.`}
+  path="/wishes-needed/"
+  jsonLd={jsonLd}
+>
+  <div class="container">
+    <Breadcrumbs crumbs={[{ label: 'Wishes Needed' }]} />
+
+    <span class="overline">Tool 2 of 4</span>
+    <h1>How many wishes do you need?</h1>
+    <p class="lede">
+      “Guaranteed” is the worst case - 180 wishes for a character from a fresh 50/50 - but almost
+      nobody needs the worst case. Pick a confidence level and this calculator solves the exact
+      inverse of the pity math: the smallest number of wishes that gives you that chance of your
+      5★, accounting for soft pity, your counter, the 50/50, Capturing Radiance and fate points.
+    </p>
+
+    <div class="section">
+      <div class="tool-grid">
+        <!-- inputs -->
+        <form class="glass glass-pad" id="neededForm" autocomplete="off">
+          <fieldset class="field">
+            <legend><Icon name="users" size={14} /> Which banner?</legend>
+            <div class="segmented" role="radiogroup" aria-label="Banner">
+              <input type="radio" id="b-character" name="banner" value="character" checked />
+              <label for="b-character"><Icon name="users" size={13} /> Character</label>
+              <input type="radio" id="b-weapon" name="banner" value="weapon" />
+              <label for="b-weapon"><Icon name="sword" size={13} /> Weapon</label>
+              <input type="radio" id="b-standard" name="banner" value="standard" />
+              <label for="b-standard"><Icon name="globe" size={13} /> Standard</label>
+            </div>
+          </fieldset>
+
+          <div class="field">
+            <label for="pityInput"><Icon name="hash" size={14} /> Current pity counter</label>
+            <input type="number" id="pityInput" min="0" max="89" step="1" value="0" inputmode="numeric" />
+            <input type="range" id="pityRange" min="0" max="89" value="0" aria-label="Pity counter slider" />
+            <p class="hint">Wishes since your last 5★ on this banner type.</p>
+          </div>
+
+          <fieldset class="field only-character">
+            <legend><Icon name="scale" size={14} /> Your 50/50 situation</legend>
+            <div class="segmented" role="radiogroup" aria-label="50/50 state">
+              <input type="radio" id="s-fresh" name="state" value="fresh" checked />
+              <label for="s-fresh">50/50 · won last</label>
+              <input type="radio" id="s-armed" name="state" value="armed" />
+              <label for="s-armed">50/50 · lost last</label>
+              <input type="radio" id="s-guaranteed" name="state" value="guaranteed" />
+              <label for="s-guaranteed">Guaranteed</label>
+            </div>
+            <p class="hint">Radiance model (v5.0+) is included; see the methodology for details.</p>
+          </fieldset>
+
+          <fieldset class="field only-weapon" hidden>
+            <legend><Icon name="compass" size={14} /> Epitomized Path</legend>
+            <div class="segmented tealish" role="radiogroup" aria-label="Fate points">
+              <input type="radio" id="fp-0" name="fatePoints" value="0" checked />
+              <label for="fp-0">0 fate points</label>
+              <input type="radio" id="fp-1" name="fatePoints" value="1" />
+              <label for="fp-1">1 fate point</label>
+            </div>
+            <p class="hint">One fate point (v5.0+) guarantees your selected weapon next 5★.</p>
+          </fieldset>
+
+          <div class="field">
+            <label for="confInput"><Icon name="percent" size={14} /> Custom confidence %</label>
+            <input type="number" id="confInput" min="1" max="99.9" step="0.5" value="75" inputmode="decimal" />
+            <p class="hint">The quick buttons below cover the popular levels.</p>
+            <div class="segmented" role="radiogroup" aria-label="Confidence level" id="confQuick">
+              <input type="radio" id="c-50" name="conf" value="50" />
+              <label for="c-50">50%</label>
+              <input type="radio" id="c-90" name="conf" value="90" checked />
+              <label for="c-90">90%</label>
+              <input type="radio" id="c-99" name="conf" value="99" />
+              <label for="c-99">99%</label>
+            </div>
+          </div>
+
+          <a class="btn btn-primary btn-sm" id="planLink" href="/savings-planner/?wishes=155" style="width:100%">
+            <Icon name="coins" size={14} /> Plan saving for this <Icon name="arrow-right" size={13} />
+          </a>
+        </form>
+
+        <!-- results -->
+        <div aria-live="polite">
+          <div class="glass result-hero">
+            <p class="result-sub" style="margin-bottom:4px">
+              Wishes needed for <b id="confEcho">90%</b> chance of
+              <b id="targetDesc">the featured 5★ character</b>
+            </p>
+            <div class="result-value" id="mainWishes">155</div>
+            <p class="result-sub" id="primoEcho">≈ 24,800 primogems</p>
+          </div>
+
+          <div class="glass glass-pad" style="margin-top:14px">
+            <h3 style="margin-bottom:8px"><Icon name="list" size={16} /> Your full confidence ladder</h3>
+            <div class="table-wrap">
+              <table class="table" id="ladderTable">
+                <thead>
+                  <tr><th>Confidence</th><th>Wishes</th><th>Primogems</th></tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <p class="note-src" style="margin-top:10px">
+              “Guarantee” = the mathematically worst case; soft pity usually delivers sooner.
+            </p>
+          </div>
+
+          <div style="margin-top:14px">
+            <ProbabilityChart title="Cumulative chance vs wishes" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <section class="section glass glass-pad">
+      <h2><Icon name="table" size={19} /> Cheat sheet - wishes for a guaranteed 5★</h2>
+      <p>
+        Computed with the same engine at build time (pity 0, Radiance on, Epitomized Path on).
+        Bookmark-worthy numbers for planning:
+      </p>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr><th>Scenario</th><th>50% chance</th><th>90% chance</th><th>99% chance</th><th>Hard guarantee</th></tr>
+          </thead>
+          <tbody>
+            {refRows.map((r) => (
+              <tr>
+                <td>{r.label}</td>
+                <td class="num-cell">{r.p50}</td>
+                <td class="num-cell"><b>{r.p90}</b></td>
+                <td class="num-cell">{r.p99}</td>
+                <td class="num-cell">{Number.isFinite(r.worst) ? fmtInt(r.worst) : '-'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p class="note-src" style="margin-top:12px">
+        The famous “180 wishes” is the worst case for a character from a fresh 50/50 - you need the
+        median at 80, 90% confidence at 155. Constellations stack the same ladder: C1 ≈ up to 360
+        worst case, C2 ≈ 540.
+      </p>
+    </section>
+
+    <section class="section faq" aria-labelledby="needed-faq">
+      <h2 id="needed-faq">Wishes-needed FAQ</h2>
+      <FAQItem question="How many wishes is a guaranteed character, really?">
+        <p>
+          Worst case <b>180</b> from a fresh 50/50: lose the 50/50 at hard pity (90), then hit hard
+          pity again (90). With a guaranteed already banked it's <b>90</b> worst case. In practice
+          soft pity pulls these far down - the 50/50-point is ~80 wishes and 90% confidence is
+          ~155.
+        </p>
+      </FAQItem>
+      <FAQItem question="Why is 90% so much cheaper than a guarantee?">
+        <p>
+          The last few percent are the most expensive: the guarantee must assume you lose the 50/50
+          <i>and</i> hit hard pity twice. Getting to 90% only has to survive one unusually unlucky
+          branch, not the absolute worst one.
+        </p>
+      </FAQItem>
+      <FAQItem question="How many primogems is that?">
+        <p>
+          Multiply by 160. 180 wishes = 28,800 primogems worst case for a character; 160 wishes =
+          25,600 for a selected weapon with one fate point. The <a href="/savings-planner/">savings
+          planner</a> converts these into patches of saving for your income level.
+        </p>
+      </FAQItem>
+      <p>
+        <a href="/guides/how-many-wishes-guaranteed/">Full guide: wishes for every guarantee <Icon name="arrow-right" size={13} /></a>
+      </p>
+    </section>
+  </div>
+</BaseLayout>
+
+<script>
+  import {
+    BANNERS,
+    clampPity,
+    defaultParams,
+    featuredCurve,
+    worstCaseWishes,
+    type BannerKind,
+    type TargetParams,
+  } from '../lib/pity';
+
+  const $ = <T extends HTMLElement>(sel: string) => document.querySelector<T>(sel)!;
+  const form = $('#neededForm');
+  const pityInput = $<HTMLInputElement>('#pityInput');
+  const pityRange = $<HTMLInputElement>('#pityRange');
+  const confInput = $<HTMLInputElement>('#confInput');
+  const chart = document.querySelector('pity-chart')!;
+
+  let state: TargetParams & { conf: number } = { ...defaultParams('character'), conf: 0.9 };
+
+  function clampInt(v: string, min: number, max: number, fallback: number): number {
+    const n = parseFloat(v);
+    if (Number.isNaN(n)) return fallback;
+    return Math.max(min, Math.min(max, n));
+  }
+
+  function params(): TargetParams {
+    return {
+      banner: state.banner,
+      pity: clampPity(state.banner, state.pity),
+      state: state.state,
+      fatePoints: state.fatePoints,
+      epitomized: state.epitomized,
+      radiance: state.radiance,
+    };
+  }
+
+  function wishesFor(conf: number): number {
+    const p = params();
+    const worst = worstCaseWishes(p);
+    if (!Number.isFinite(worst)) {
+      // Weapon banner without Epitomized Path: 37.5% per 5★, never guaranteed.
+      const curve = featuredCurve(p, 600);
+      for (let n = 0; n < curve.length; n++) if (curve[n] >= conf) return n;
+      return 600;
+    }
+    const curve = featuredCurve(p, worst);
+    for (let n = 0; n < curve.length; n++) if (curve[n] >= conf - 1e-12) return n;
+    return worst;
+  }
+
+  function recalc(): void {
+    const p = params();
+    const worst = worstCaseWishes(p);
+    const chartLen = Number.isFinite(worst) ? Math.max(worst, 120) : 320;
+    const curve = featuredCurve(p, chartLen);
+
+    const desc =
+      state.banner === 'character'
+        ? 'the featured 5★ character'
+        : state.banner === 'weapon'
+          ? 'your selected 5★ weapon'
+          : 'any 5★';
+    $('#targetDesc').textContent = desc;
+    $('#confEcho').textContent = `${(state.conf * 100).toFixed(state.conf * 100 % 1 === 0 ? 0 : 1)}%`;
+
+    const n = wishesFor(state.conf);
+    $('#mainWishes').textContent = String(n);
+    $('#primoEcho').textContent = `≈ ${(n * 160).toLocaleString('en-US')} primogems`;
+    $('#planLink').href = `/savings-planner/?wishes=${n}`;
+
+    // ladder table
+    const levels = [0.5, 0.75, 0.9, 0.95, 0.99];
+    const tbody = $('#ladderTable tbody')!;
+    tbody.innerHTML = levels
+      .map((lv) => {
+        const w = wishesFor(lv);
+        return `<tr${Math.abs(lv - state.conf) < 1e-9 ? ' style="color:var(--gold-soft)"' : ''}><td>${(lv * 100).toFixed(0)}%</td><td class="num-cell"><b>${w}</b></td><td class="num-cell">${(w * 160).toLocaleString('en-US')}</td></tr>`;
+      })
+      .join('') +
+      `<tr><td>Guarantee</td><td class="num-cell"><b>${Number.isFinite(worst) ? worst : '-'}</b></td><td class="num-cell">${Number.isFinite(worst) ? (worst * 160).toLocaleString('en-US') : 'never (no fate points)'}</td></tr>`;
+
+    const b = BANNERS[state.banner];
+    chart.update({
+      type: 'line',
+      xLabel: `Wishes (soft pity at ${b.softPityStart})`,
+      yMax: 1,
+      series: [{ name: `P(${desc.replace('the ', '').replace('your ', '')})`, color: '#e8c268', data: curve, area: true }],
+      guides: [
+        { y: 0.5, label: '50%' },
+        { y: 0.9, label: '90%' },
+      ],
+      markers: [{ x: Math.min(n, chartLen - 1), label: `${(state.conf * 100).toFixed(0)}% at ${n}` }],
+    });
+  }
+
+  function readForm(): void {
+    state.banner = (form.querySelector<HTMLInputElement>('input[name="banner"]:checked')?.value ??
+      'character') as BannerKind;
+    state.pity = clampInt(pityInput.value, 0, 89, 0);
+    state.state =
+      (form.querySelector<HTMLInputElement>('input[name="state"]:checked')?.value ?? 'fresh') as
+        | 'fresh'
+        | 'armed'
+        | 'guaranteed';
+    state.fatePoints = form.querySelector<HTMLInputElement>('input[name="fatePoints"]:checked')?.value === '1' ? 1 : 0;
+    state.epitomized = true;
+    const quick = form.querySelector<HTMLInputElement>('input[name="conf"]:checked')?.value;
+    state.conf = quick ? Number(quick) / 100 : clampInt(confInput.value, 0.01, 0.999, 0.9);
+  }
+
+  function syncVisibility(): void {
+    document.querySelectorAll<HTMLElement>('.only-character').forEach((el) => (el.hidden = state.banner !== 'character'));
+    document.querySelectorAll<HTMLElement>('.only-weapon').forEach((el) => (el.hidden = state.banner !== 'weapon'));
+    const maxPity = BANNERS[state.banner].hardPity - 1;
+    pityInput.max = String(maxPity);
+    pityRange.max = String(maxPity);
+  }
+
+  form.addEventListener('change', () => {
+    const prev = state.banner;
+    readForm();
+    if (prev !== state.banner) state.pity = clampPity(state.banner, state.pity);
+    syncVisibility();
+    pityInput.value = String(state.pity);
+    pityRange.value = String(state.pity);
+    recalc();
+  });
+  pityInput.addEventListener('input', () => {
+    readForm();
+    pityRange.value = String(state.pity);
+    recalc();
+  });
+  pityRange.addEventListener('input', () => {
+    pityInput.value = pityRange.value;
+    readForm();
+    recalc();
+  });
+  confInput.addEventListener('input', () => {
+    form.querySelectorAll<HTMLInputElement>('input[name="conf"]').forEach((r) => (r.checked = false));
+    readForm();
+    recalc();
+  });
+
+  // URL prefill: ?b=weapon&p=40&s=guaranteed&conf=90
+  const q = new URLSearchParams(location.search);
+  if (q.size > 0) {
+    const banner = (q.get('b') ?? '') as BannerKind;
+    if (BANNERS[banner]) {
+      state.banner = banner;
+      if (q.get('p')) state.pity = clampInt(q.get('p')!, 0, 89, 0);
+      if (['fresh', 'armed', 'guaranteed'].includes(q.get('s') ?? ''))
+        state.state = q.get('s') as 'fresh' | 'armed' | 'guaranteed';
+      if (q.get('fp') === '1') state.fatePoints = 1;
+      if (q.get('conf')) state.conf = clampInt(q.get('conf')!, 1, 99.9, 90) / 100;
+    }
+  }
+
+  // reflect state into form
+  form.querySelector<HTMLInputElement>(`input[name="banner"][value="${state.banner}"]`)!.checked = true;
+  form.querySelector<HTMLInputElement>(`input[name="state"][value="${state.state}"]`)!.checked = true;
+  form.querySelector<HTMLInputElement>(`input[name="fatePoints"][value="${state.fatePoints}"]`)!.checked = true;
+  pityInput.value = String(state.pity);
+  pityRange.value = String(state.pity);
+  confInput.value = String(Math.round(state.conf * 1000) / 10);
+  syncVisibility();
+  recalc();
+</script>

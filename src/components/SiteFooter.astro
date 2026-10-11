@@ -1,0 +1,67 @@
+---
+import Icon from '../components/Icon.astro';
+import { RATES_SNAPSHOT, SITE_NAME } from '../lib/site';
+---
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-about">
+        <a href="/" class="brand" style="margin-bottom:14px">
+          <svg class="logo-star" width="22" height="22" viewBox="0 0 64 64" aria-hidden="true">
+            <path
+              d="M32 6 C34.5 23 41 29.5 58 32 C41 34.5 34.5 41 32 58 C29.5 41 23 34.5 6 32 C23 29.5 29.5 23 32 6 Z"
+              fill="#e8c268"></path>
+          </svg>
+          Pity<em>Hub</em>
+        </a>
+        <p>
+          Free, exact probability calculators for the Genshin Impact wish system - pity counters,
+          soft pity, the 50/50, Capturing Radiance and Epitomized Path. Everything runs in your
+          browser; nothing is uploaded.
+        </p>
+        <p>
+          <span class="badge"><Icon name="calendar" size={12} /> Rates snapshot: {RATES_SNAPSHOT}</span>
+        </p>
+      </div>
+      <div>
+        <h4><Icon name="calculator" size={13} /> Tools</h4>
+        <ul>
+          <li><a href="/pity-calculator/">Pity Calculator</a></li>
+          <li><a href="/wishes-needed/">Wishes Needed Calculator</a></li>
+          <li><a href="/savings-planner/">Savings Planner</a></li>
+          <li><a href="/simulator/">50/50 Simulator</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4><Icon name="book" size={13} /> Learn</h4>
+        <ul>
+          <li><a href="/guides/soft-pity-explained/">Soft Pity Explained</a></li>
+          <li><a href="/guides/how-many-wishes-guaranteed/">Wishes for a Guarantee</a></li>
+          <li><a href="/guides/capturing-radiance/">Capturing Radiance</a></li>
+          <li><a href="/faq/">FAQ</a></li>
+          <li><a href="/methodology/">Methodology &amp; Sources</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4><Icon name="info" size={13} /> Site</h4>
+        <ul>
+          <li><a href="/">Home</a></li>
+          <li><a href="/methodology/">How we calculate</a></li>
+          <li>
+            <a href="https://genshin.hoyoverse.com/en/home" rel="noopener nofollow" target="_blank">
+              Official Genshin site
+              <Icon name="external" size={11} />
+            </a>
+          </li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© {new Date().getFullYear()} {SITE_NAME} · pitycalc.top</span>
+      <span>
+        Unofficial fan tool. Genshin Impact and all related names are trademarks of
+        HoYoverse / COGNOSPHERE. Not affiliated, endorsed, or sponsored.
+      </span>
+    </div>
+  </div>
+</footer>

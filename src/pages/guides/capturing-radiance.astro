@@ -1,0 +1,90 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Breadcrumbs from '../../components/Breadcrumbs.astro';
+import Icon from '../../components/Icon.astro';
+import { RATES_SNAPSHOT } from '../../lib/site';
+import { defaultParams, featuredProb } from '../../lib/pity';
+
+const p90 = defaultParams('character');
+const demo90Off = featuredProb({ ...p90, radiance: false }, 90);
+const demo90On = featuredProb({ ...p90, state: 'armed' }, 90);
+
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: 'Capturing Radiance Explained: The 55% 50/50 in Genshin Impact',
+    description:
+      'Since Genshin Impact 5.0, Capturing Radiance converts some losing 50/50s into wins, raising the consolidated featured-character probability from 50% to about 55%. How it works and how to plan with it.',
+    datePublished: '2026-10-11',
+    author: { '@type': 'Organization', name: 'PityHub' },
+    publisher: { '@type': 'Organization', name: 'PityHub' },
+    mainEntityOfPage: 'https://pitycalc.top/guides/capturing-radiance/',
+  },
+];
+---
+
+<BaseLayout
+  title="Capturing Radiance Explained - Genshin's ~55% 50/50 (v5.0+)"
+  description={`Capturing Radiance (Genshin Impact 5.0+) rescues some losing 50/50s, lifting the featured-character probability from 50% to ~55% consolidated. How it works, the community data, and how to plan around it. Snapshot ${RATES_SNAPSHOT}.`}
+  path="/guides/capturing-radiance/"
+  ogType="article"
+  jsonLd={jsonLd}
+>
+  <div class="container">
+    <Breadcrumbs crumbs={[{ href: '/guides/', label: 'Guides' }, { label: 'Capturing Radiance' }]} />
+    <article class="prose">
+      <span class="overline">Guide</span>
+      <h1>Capturing Radiance, explained</h1>
+      <p>
+        For four years the character banner's central drama was a literal coin flip: every 5★ was
+        the featured character 50% of the time, and a loss only promised the next one. Version 5.0
+        quietly tilted the coin. <b>Capturing Radiance</b> (命定常驻 in the CN client) can convert
+        a losing 50/50 into a win on the spot - you'll see a distinctive golden animation instead
+        of the usual heartbreak - raising the official consolidated probability of the featured
+        character from 50% to about <b>55%</b>.
+      </p>
+
+      <h2><Icon name="info" size={19} /> How it actually works</h2>
+      <p>
+        HoYoverse's official description is short: when you would lose a 50/50, Radiance may
+        trigger and guarantee the featured character instead, with the effect that the
+        consolidated featured probability rises to ≈55%. The community has filled in the blanks
+        from large wish-export datasets: the rescue fires on roughly <b>10% of losing 50/50s</b>
+        (0.5 + 0.5 × 0.10 = 0.55), and - per several analyses - it seems to arm after you've
+        recently lost a 50/50, preferentially rescuing players on loss streaks (some threads argue
+        it only fires on the 3rd–4th consecutive loss). The official FAQ insists there are no
+        hidden conditions beyond the base rates.
+      </p>
+      <p>
+        For planning purposes the distinction barely matters, and our calculator exposes both
+        knobs: a <b>50/50 state</b> (won last / lost last / guaranteed) and a
+        <b>Radiance toggle</b>. The “lost last” state models the armed 50/50 you enter after
+        taking a guaranteed pull - that's the one Radiance can rescue at 55%.
+      </p>
+
+      <h2><Icon name="trending-up" size={19} /> What it changes - in wishes</h2>
+      <p>
+        Radiance is comfort, not revolution. On the armed 50/50 after a loss, your odds within a
+        90-wish budget move from {(demo90Off * 100).toFixed(1)}% to {(demo90On * 100).toFixed(1)}%
+        in our model. The worst case is untouched: <b>180 wishes still guarantees</b> a character
+        from a fresh 50/50, because Radiance can't fire on a guarantee. Expected cost drifts down
+        by a couple of wishes per character - nice, not life-changing.
+      </p>
+
+      <h2><Icon name="bulb" size={19} /> Planning with Radiance</h2>
+      <ul>
+        <li><b>Realistic mode:</b> leave Radiance on (default) - it matches the official 55% consolidated figure.</li>
+        <li><b>Conservative mode:</b> switch it off when deciding the minimum bank needed; the guarantee math is identical either way.</li>
+        <li><b>Never count on the animation:</b> budget as if every 50/50 is 50/50; treat any rescue as a bonus wish refund.</li>
+      </ul>
+
+      <p class="note-src">
+        Model, parameters and sources on the <a href="/methodology/">methodology page</a>.
+        Snapshot {RATES_SNAPSHOT}. Try your exact situation in the
+        <a href="/pity-calculator/">pity calculator</a>, or feel the mechanic in the
+        <a href="/simulator/">50/50 simulator</a>.
+      </p>
+    </article>
+  </div>
+</BaseLayout>

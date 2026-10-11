@@ -1,0 +1,308 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Breadcrumbs from '../components/Breadcrumbs.astro';
+import FAQItem from '../components/FAQItem.astro';
+import Icon from '../components/Icon.astro';
+import { RATES_SNAPSHOT } from '../lib/site';
+import { INCOME_PRESETS, PATCH_DAYS_DEFAULT, PRIMOGEMS_PER_WISH, STARDUST_FATES_PER_MONTH } from '../lib/income';
+import { wishesForConfidence, defaultParams } from '../lib/pity';
+
+const suggested = wishesForConfidence(defaultParams('character'), 0.9); // ≈155
+
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'WebApplication',
+    name: 'Genshin Savings Planner',
+    applicationCategory: 'GameToolApplication',
+    operatingSystem: 'Any',
+    url: 'https://pitycalc.top/savings-planner/',
+    description:
+      'Plan saving for a Genshin Impact 5★: enter the wishes you need and what you own, and see how many patches and days of saving remain at F2P, Welkin or Welkin+BP income.',
+    offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+  },
+];
+---
+
+<BaseLayout
+  title="Genshin Savings Planner - How Many Patches Until You Can Pull?"
+  description={`Genshin savings planner: wishes needed vs wishes per patch (F2P ≈ 45, Welkin ≈ 70, Welkin+BP ≈ 83, or your own rate) to get patches and days of saving left. Snapshot ${RATES_SNAPSHOT}.`}
+  path="/savings-planner/"
+  jsonLd={jsonLd}
+>
+  <div class="container">
+    <Breadcrumbs crumbs={[{ label: 'Savings Planner' }]} />
+
+    <span class="overline">Tool 3 of 4</span>
+    <h1>Genshin savings planner</h1>
+    <p class="lede">
+      You know how many wishes you need - now find out how long it takes to bank them. Enter your
+      goal and what you already own, pick an income level (or type your own measured rate), and the
+      planner converts the gap into patches, days and a calendar date.
+    </p>
+
+    <div class="section">
+      <div class="tool-grid">
+        <!-- inputs -->
+        <form class="glass glass-pad" id="plannerForm" autocomplete="off">
+          <div class="field">
+            <label for="neededInput"><Icon name="target" size={14} /> Wishes you need</label>
+            <input type="number" id="neededInput" min="1" max="2000" step="1" value={suggested} inputmode="numeric" />
+            <p class="hint">
+              Not sure? A 90% shot at a featured character is ≈ {suggested}; a hard guarantee is 180.
+              The <a href="/wishes-needed/">wishes-needed calculator</a> can pin this down exactly.
+            </p>
+          </div>
+
+          <div class="grid-2">
+            <div class="field">
+              <label for="fatesInput"><Icon name="gem" size={14} /> Intertwined fates owned</label>
+              <input type="number" id="fatesInput" min="0" max="10000" step="1" value="0" inputmode="numeric" />
+            </div>
+            <div class="field">
+              <label for="primosInput"><Icon name="coins" size={14} /> Primogems owned</label>
+              <input type="number" id="primosInput" min="0" max="1000000" step="10" value="0" inputmode="numeric" />
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="switch-row" for="stardustToggle">
+              <span class="txt">
+                <b><Icon name="sparkle" size={14} /> Count the Stardust shop</b>
+                <small>+{STARDUST_FATES_PER_MONTH} Intertwined Fates per month (75 Stardust)</small>
+              </span>
+              <span class="switch">
+                <input type="checkbox" id="stardustToggle" checked />
+                <span class="track"></span>
+                <span class="thumb"></span>
+              </span>
+            </label>
+          </div>
+
+          <fieldset class="field">
+            <legend><Icon name="coins" size={14} /> Wishes per patch</legend>
+            <div class="segmented" role="radiogroup" aria-label="Income preset" id="incomeGroup">
+              {INCOME_PRESETS.map((p, i) => (
+                <>
+                  <input type="radio" id={`inc-${p.id}`} name="income" value={p.id} checked={i === 0} />
+                  <label for={`inc-${p.id}`} title={p.blurb}>{p.label.split(' - ')[0]} ≈{p.wishes}</label>
+                </>
+              ))}
+              <input type="radio" id="inc-custom" name="income" value="custom" />
+              <label for="inc-custom">Custom</label>
+            </div>
+            <div class="field" style="margin-top:10px" id="customWrap" hidden>
+              <label for="customIncome"><Icon name="trending-up" size={14} /> Your rate - wishes per patch</label>
+              <input type="number" id="customIncome" min="0" max="400" step="1" value="45" inputmode="numeric" />
+              <p class="hint">Tip: your Wish history shows what you actually earned in past patches.</p>
+            </div>
+            <p class="hint">
+              Convention: one patch = 42 days; presets cover <b>recurring</b> income only (dailies,
+              Abyss, Theater, events, mail) - no one-time exploration. Full breakdown on
+              <a href="/methodology/">the methodology page</a>.
+            </p>
+          </fieldset>
+
+          <div class="grid-2">
+            <div class="field">
+              <label for="patchDaysInput"><Icon name="calendar" size={14} /> Patch length (days)</label>
+              <input type="number" id="patchDaysInput" min="14" max="70" step="1" value={PATCH_DAYS_DEFAULT} inputmode="numeric" />
+            </div>
+            <div class="field">
+              <label for="startDateInput"><Icon name="clock" size={14} /> Saving from</label>
+              <input type="date" id="startDateInput" />
+            </div>
+          </div>
+        </form>
+
+        <!-- results -->
+        <div aria-live="polite">
+          <div class="glass result-hero">
+            <p class="result-sub" style="margin-bottom:4px"><Icon name="coins" size={15} /> Wishes still needed after what you own</p>
+            <div class="result-value" id="shortfallVal">155</div>
+            <p class="result-sub" id="shortfallSub">≈ 24,800 primogems</p>
+            <div style="margin-top:18px" aria-hidden="true">
+              <div class="progress"><div class="fill" id="progressFill" style="width:0%"></div></div>
+            </div>
+            <p class="note-src" style="margin-top:8px" id="progressLbl">0% banked</p>
+          </div>
+
+          <div class="stats-row" style="margin-top:14px">
+            <div class="stat glass">
+              <span class="num" id="patchesVal">4</span>
+              <span class="lbl"><Icon name="layers" size={13} /> Patches of saving</span>
+            </div>
+            <div class="stat glass tealish">
+              <span class="num" id="daysVal">168</span>
+              <span class="lbl"><Icon name="clock" size={13} /> Days</span>
+            </div>
+            <div class="stat glass">
+              <span class="num" id="etaVal" style="font-size:1.15rem">-</span>
+              <span class="lbl"><Icon name="calendar" size={13} /> Ready around</span>
+            </div>
+          </div>
+
+          <div class="glass glass-pad" style="margin-top:14px">
+            <h3 style="margin-bottom:8px"><Icon name="scale" size={16} /> Compare income levels</h3>
+            <div class="table-wrap">
+              <table class="table" id="compareTable">
+                <thead><tr><th>Income</th><th>Wishes/patch</th><th>Patches</th><th>Days</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <p class="note-src" style="margin-top:10px">
+              Estimates for planning, not promises - patch income varies with events, exploration
+              and anniversary windfalls. Snapshot {RATES_SNAPSHOT}.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <section class="section glass glass-pad">
+      <h2>Where the per-patch estimates come from</h2>
+      <p>
+        Every preset is built bottom-up from documented, recurring sources: daily commissions
+        (60 primogems/day ≈ 15.7 wishes), Spiral of Abyss (600 × 2 resets ≈ 7.5), Imaginarium
+        Theater (≈ 600/month), events, maintenance mail and livestream codes. “F2P - everything”
+        adds a typical patch's one-time exploration and quest rewards. Welkin adds
+        90/day + 300 Genesis per purchase; the paid Battle Pass adds 680 primogems + 8 Intertwined
+        Fates. {PRIMOGEMS_PER_WISH} primogems = 1 wish throughout.
+      </p>
+      <p>
+        Community “primogem census” threads for 5.x versions land in the same ranges (F2P roughly
+        60–90 wishes on map patches, higher on anniversaries) - but your own history is the best
+        input, which is exactly why the custom field exists. Sources and math:
+        <a href="/methodology/">methodology</a>.
+      </p>
+    </section>
+
+    <section class="section faq" aria-labelledby="planner-faq">
+      <h2 id="planner-faq">Savings planner FAQ</h2>
+      <FAQItem question="How many wishes does a F2P player get per patch?">
+        <p>
+          Roughly <b>45</b> from recurring sources, and <b>70–80</b> on patches with a new map or
+          sizable one-time content. Anniversary and festival patches spike higher. If you clear
+          Spiral of Abyss and Theater every cycle and do your dailies, you're at the top of the
+          recurring range.
+        </p>
+      </FAQItem>
+      <FAQItem question="Is Welkin worth it for wish planning?">
+        <p>
+          For saving speed, yes: Welkin adds ≈ 25.5 wishes per 42-day patch (90/day + 300 Genesis),
+          turning a ~4-patch wait into roughly a 3-patch wait for a 90%-confidence character. The
+          planner's comparison table shows the gap for your exact goal.
+        </p>
+      </FAQItem>
+      <FAQItem question="What if my patch isn't 42 days?">
+        <p>
+          Adjust the patch-length field - some versions run 35 or 49 days. All day-based outputs
+          scale from it, and the patches figure rounds up (you can't bank half a patch).
+        </p>
+      </FAQItem>
+      <p><a href="/wishes-needed/">First: how many wishes do you actually need? <Icon name="arrow-right" size={13} /></a></p>
+    </section>
+  </div>
+</BaseLayout>
+
+<script>
+  import { INCOME_PRESETS, PATCH_DAYS_DEFAULT, PRIMOGEMS_PER_WISH, STARDUST_FATES_PER_MONTH, MONTHS_PER_PATCH } from '../lib/income';
+
+  const $ = <T extends HTMLElement>(sel: string) => document.querySelector<T>(sel)!;
+  const form = $('#plannerForm');
+  const neededInput = $<HTMLInputElement>('#neededInput');
+  const fatesInput = $<HTMLInputElement>('#fatesInput');
+  const primosInput = $<HTMLInputElement>('#primosInput');
+  const stardustToggle = $<HTMLInputElement>('#stardustToggle');
+  const customWrap = $('#customWrap');
+  const customIncome = $<HTMLInputElement>('#customIncome');
+  const patchDaysInput = $<HTMLInputElement>('#patchDaysInput');
+  const startDateInput = $<HTMLInputElement>('#startDateInput');
+
+  function clampInt(v: string, min: number, max: number, fallback: number): number {
+    const n = parseInt(v, 10);
+    if (Number.isNaN(n)) return fallback;
+    return Math.max(min, Math.min(max, n));
+  }
+
+  function currentIncome(): number {
+    const sel = form.querySelector<HTMLInputElement>('input[name="income"]:checked')?.value;
+    if (sel === 'custom') return clampInt(customIncome.value, 0, 400, 45);
+    return INCOME_PRESETS.find((p) => p.id === sel)?.wishes ?? 45;
+  }
+
+  function recalc(): void {
+    const needed = clampInt(neededInput.value, 1, 2000, 155);
+    const have =
+      clampInt(fatesInput.value, 0, 10000, 0) +
+      Math.floor(clampInt(primosInput.value, 0, 1000000, 0) / PRIMOGEMS_PER_WISH);
+    const shortfall = Math.max(0, needed - have);
+    const perPatch = currentIncome();
+    const patchDays = clampInt(patchDaysInput.value, 14, 70, PATCH_DAYS_DEFAULT);
+
+    // Stardust: +5 fates per calendar month while saving.
+    const stardustRate = stardustToggle.checked ? STARDUST_FATES_PER_MONTH / (patchDays / 30.44) : 0;
+    const effPerPatch = perPatch + stardustRate;
+
+    const pct = Math.min(100, (have / needed) * 100);
+    const fill = $('#progressFill');
+    fill.style.width = `${pct}%`;
+    fill.classList.toggle('complete', pct >= 100);
+    $('#progressLbl').textContent =
+      pct >= 100 ? 'Goal fully banked - go pull!' : `${have} / ${needed} wishes banked (${pct.toFixed(0)}%)`;
+
+    $('#shortfallVal').textContent = String(shortfall);
+    $('#shortfallSub').textContent =
+      shortfall === 0 ? 'Nothing left to save.' : `≈ ${(shortfall * PRIMOGEMS_PER_WISH).toLocaleString('en-US')} primogems`;
+
+    let patches: number;
+    if (shortfall === 0) patches = 0;
+    else if (effPerPatch <= 0) patches = Infinity;
+    else patches = Math.ceil(shortfall / effPerPatch);
+    const days = Number.isFinite(patches) ? patches * patchDays : Infinity;
+
+    $('#patchesVal').textContent = Number.isFinite(patches) ? String(patches) : '∞';
+    $('#daysVal').textContent = Number.isFinite(days) ? String(days) : '∞';
+
+    if (Number.isFinite(days)) {
+      const start = startDateInput.valueAsDate ?? new Date();
+      const eta = new Date(start.getTime() + days * 86400000);
+      $('#etaVal').textContent = eta.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      });
+    } else {
+      $('#etaVal').textContent = '-';
+    }
+
+    // comparison table across presets
+    const tbody = $('#compareTable tbody')!;
+    tbody.innerHTML = INCOME_PRESETS.map((p) => {
+      const eff = p.wishes + (stardustToggle.checked ? STARDUST_FATES_PER_MONTH / (patchDays / 30.44) : 0);
+      const pp = shortfall === 0 ? 0 : Math.ceil(shortfall / eff);
+      const dd = pp * patchDays;
+      const active = Math.abs(p.wishes - perPatch) < 0.01;
+      return `<tr${active ? ' style="color:var(--gold-soft)"' : ''}><td>${p.label}</td><td class="num-cell">${p.wishes}</td><td class="num-cell"><b>${pp}</b></td><td class="num-cell">${dd}</td></tr>`;
+    }).join('');
+  }
+
+  form.addEventListener('change', () => {
+    const sel = form.querySelector<HTMLInputElement>('input[name="income"]:checked')?.value;
+    customWrap.hidden = sel !== 'custom';
+    recalc();
+  });
+  for (const el of [neededInput, fatesInput, primosInput, customIncome, patchDaysInput]) {
+    el.addEventListener('input', recalc);
+  }
+  stardustToggle.addEventListener('change', recalc);
+  startDateInput.addEventListener('input', recalc);
+
+  const q = new URLSearchParams(location.search);
+  if (q.get('wishes')) neededInput.value = String(clampInt(q.get('wishes')!, 1, 2000, 155));
+
+  // default start date = today
+  const today = new Date();
+  startDateInput.value = today.toISOString().slice(0, 10);
+  recalc();
+</script>

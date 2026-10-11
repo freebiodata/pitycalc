@@ -1,0 +1,513 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import ProbabilityChart from '../components/ProbabilityChart.astro';
+import Breadcrumbs from '../components/Breadcrumbs.astro';
+import FAQItem from '../components/FAQItem.astro';
+import Icon from '../components/Icon.astro';
+import { RATES_SNAPSHOT } from '../lib/site';
+import { BANNERS } from '../lib/pity';
+
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'WebApplication',
+    name: 'Genshin Pity Calculator',
+    applicationCategory: 'GameToolApplication',
+    operatingSystem: 'Any',
+    url: 'https://pitycalc.top/pity-calculator/',
+    description:
+      'Calculate the exact probability of pulling a featured 5★ in Genshin Impact within N wishes, based on your pity counter, 50/50 state and Capturing Radiance.',
+    offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://pitycalc.top/' },
+      {
+        '@type': 'ListItem',
+        position: 2,
+        name: 'Pity Calculator',
+        item: 'https://pitycalc.top/pity-calculator/',
+      },
+    ],
+  },
+];
+---
+
+<BaseLayout
+  title="Genshin Pity Calculator - Chance of Your 5★ in N Wishes"
+  description={`Free Genshin pity calculator: enter your pity counter, 50/50 and Capturing Radiance state, and see the exact probability of pulling the featured 5★ within N wishes - with a full probability curve. Snapshot ${RATES_SNAPSHOT}.`}
+  path="/pity-calculator/"
+  jsonLd={jsonLd}
+>
+  <div class="container">
+    <Breadcrumbs crumbs={[{ label: 'Pity Calculator' }]} />
+
+    <span class="overline">Tool 1 of 4</span>
+    <h1>Genshin pity calculator</h1>
+    <p class="lede">
+      Enter where you stand right now - pity counter, 50/50 situation and banner - plus the number
+      of wishes you're willing to spend. You'll get the <b>exact probability</b> of walking away
+      with your 5★, computed wish-by-wish with the documented rates (base 0.6%, soft pity from
+      74, hard pity 90) rather than a rough average.
+    </p>
+
+    <div class="section">
+      <div class="tool-grid">
+        <!-- ================= INPUTS ================= -->
+        <form class="glass glass-pad" id="calcForm" autocomplete="off">
+          <fieldset class="field">
+            <legend><Icon name="users" size={14} /> Which banner?</legend>
+            <div class="segmented" role="radiogroup" aria-label="Banner">
+              <input type="radio" id="b-character" name="banner" value="character" checked />
+              <label for="b-character"><Icon name="users" size={13} /> Character event</label>
+              <input type="radio" id="b-weapon" name="banner" value="weapon" />
+              <label for="b-weapon"><Icon name="sword" size={13} /> Weapon event</label>
+              <input type="radio" id="b-standard" name="banner" value="standard" />
+              <label for="b-standard"><Icon name="globe" size={13} /> Standard</label>
+            </div>
+          </fieldset>
+
+          <div class="field">
+            <label for="pityInput"><Icon name="hash" size={14} /> Current pity counter</label>
+            <input
+              type="number"
+              id="pityInput"
+              min="0"
+              max="89"
+              step="1"
+              value="0"
+              inputmode="numeric"
+            />
+            <input type="range" id="pityRange" min="0" max="89" value="0" aria-label="Pity counter slider" />
+            <p class="hint" id="pityHint">
+              Wishes since your last 5★ on this banner type (0–89). Find it in-game: open Wish
+              History and count the pulls after your latest 5★.
+            </p>
+          </div>
+
+          <fieldset class="field only-character">
+            <legend><Icon name="scale" size={14} /> Your 50/50 situation</legend>
+            <div class="segmented" role="radiogroup" aria-label="50/50 state">
+              <input type="radio" id="s-fresh" name="state" value="fresh" checked />
+              <label for="s-fresh" title="Won your last 50/50, or no recent loss">50/50 · won last</label>
+              <input type="radio" id="s-armed" name="state" value="armed" />
+              <label for="s-armed" title="Lost a 50/50, took the guaranteed pull, saving again">50/50 · lost last</label>
+              <input type="radio" id="s-guaranteed" name="state" value="guaranteed" />
+              <label for="s-guaranteed">Guaranteed</label>
+            </div>
+            <p class="hint">
+              “Lost last” = you lost a 50/50, pulled the guaranteed featured character, and are now
+              on a fresh 50/50 again - Capturing Radiance can rescue it. “Guaranteed” = you lost a
+              50/50 recently and your next 5★ is the featured one, period.
+            </p>
+          </fieldset>
+
+          <div class="field only-character">
+            <label class="switch-row" for="radianceToggle">
+              <span class="txt">
+                <b><Icon name="sparkle" size={14} /> Capturing Radiance (v5.0+)</b>
+                <small>Lost 50/50s can be rescued - modeled at 10%, matching the official ~55% consolidated rate</small>
+              </span>
+              <span class="switch">
+                <input type="checkbox" id="radianceToggle" checked />
+                <span class="track"></span>
+                <span class="thumb"></span>
+              </span>
+            </label>
+          </div>
+
+          <fieldset class="field only-weapon" hidden>
+            <legend><Icon name="compass" size={14} /> Epitomized Path</legend>
+            <div class="segmented tealish" role="radiogroup" aria-label="Fate points">
+              <input type="radio" id="fp-0" name="fatePoints" value="0" checked />
+              <label for="fp-0">0 fate points</label>
+              <input type="radio" id="fp-1" name="fatePoints" value="1" />
+              <label for="fp-1">1 fate point</label>
+            </div>
+            <p class="hint">
+              Since v5.0 the maximum is 1 fate point: any 5★ that isn't your selected weapon grants
+              one, and the next 5★ is guaranteed to be your pick.
+            </p>
+          </fieldset>
+
+          <div class="field only-weapon" hidden>
+            <label class="switch-row" for="epitomizedToggle">
+              <span class="txt">
+                <b><Icon name="compass" size={14} /> Using Epitomized Path</b>
+                <small>Off = pre-5.0 behaviour: 37.5% per 5★, no guarantee</small>
+              </span>
+              <span class="switch">
+                <input type="checkbox" id="epitomizedToggle" checked />
+                <span class="track"></span>
+                <span class="thumb"></span>
+              </span>
+            </label>
+          </div>
+
+          <div class="field">
+            <label for="wishesInput"><Icon name="gem" size={14} /> Wishes you'll make</label>
+            <input
+              type="number"
+              id="wishesInput"
+              min="1"
+              max="500"
+              step="1"
+              value="80"
+              inputmode="numeric"
+            />
+            <input type="range" id="wishesRange" min="1" max="300" value="80" aria-label="Wishes slider" />
+            <p class="hint">160 primogems = 1 wish, so 80 wishes = 12,800 primogems.</p>
+          </div>
+
+          <div class="grid-2">
+            <button type="button" class="btn btn-ghost btn-sm" id="copyLink"><Icon name="link" size={14} /> Copy shareable link</button>
+            <a class="btn btn-primary btn-sm" id="planLink" href="/savings-planner/?wishes=155">
+              <Icon name="coins" size={14} /> Plan these wishes
+            </a>
+          </div>
+        </form>
+
+        <!-- ================= RESULTS ================= -->
+        <div aria-live="polite">
+          <div class="glass result-hero">
+            <p class="result-sub" style="margin-bottom:4px">
+              <Icon name="target" size={15} /> Chance of getting <b id="targetDesc">the featured 5★ character</b> within
+            </p>
+            <p class="result-sub" style="margin:0 0 6px"><b id="wishesEcho">80 wishes (12,800 primogems)</b></p>
+            <div class="result-value" id="mainProb">51.0%</div>
+            <p class="result-sub" id="mainVerdict" style="margin-top:4px">Coin-flip territory.</p>
+          </div>
+
+          <div class="stats-row" style="margin-top:14px">
+            <div class="stat glass">
+              <span class="num" id="statAny">98.4%</span>
+              <span class="lbl"><Icon name="star4" size={13} /> Any 5★ within N</span>
+            </div>
+            <div class="stat glass tealish">
+              <span class="num" id="statMedian">80</span>
+              <span class="lbl"><Icon name="percent" size={13} /> Wishes for 50%</span>
+            </div>
+            <div class="stat glass">
+              <span class="num" id="statP90">155</span>
+              <span class="lbl"><Icon name="shield-check" size={13} /> Wishes for 90%</span>
+            </div>
+            <div class="stat glass tealish">
+              <span class="num" id="statWorst">180</span>
+              <span class="lbl"><Icon name="alert" size={13} /> Worst case (guarantee)</span>
+            </div>
+          </div>
+
+          <div style="margin-top:14px">
+            <ProbabilityChart title="Probability curve" />
+            <p class="note-src" style="margin-top:10px">
+              Gold: probability of the target 5★. Teal: probability of any 5★ (note the second
+              ramp after a reset). Dashed lines mark 50% and 90% confidence.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <section class="section glass glass-pad">
+      <h2>How this Genshin pity calculator works</h2>
+      <p>
+        The engine computes <b>P = 1 − ∏(1 − p<sub>i</sub>)</b> wish by wish, where each
+        p<sub>i</sub> is the documented rate for that wish number: 0.6% base on the character and
+        standard banners, ramping up ~6 percentage points per wish from wish 74, and 100% at wish
+        90. The 50/50, guarantee and Capturing Radiance layers are resolved with an exact
+        state-machine calculation - no simulation shortcuts on the numbers you're planning around.
+      </p>
+      <p>
+        The same engine, its test cases and every source (in-game Wish Details, the v5.0
+        announcement of Capturing Radiance and the one-fate-point Epitomized Path, plus community
+        statistical analyses) are documented on <a href="/methodology/">the methodology page</a>.
+        Snapshot: <span class="badge">{RATES_SNAPSHOT}</span>
+      </p>
+    </section>
+
+    <section class="section faq" aria-labelledby="calc-faq">
+      <h2 id="calc-faq">Pity calculator FAQ</h2>
+      <FAQItem question="Where do I find my current pity counter?">
+        <p>
+          Genshin doesn't display it directly. Open the <b>Wish History</b> screen on the banner, find your
+          most recent 5★, and count the wishes after it - that count is your pity counter. The
+          history window covers six months, which is enough for any saving streak.
+        </p>
+      </FAQItem>
+      <FAQItem question="Why does the number change between banners?">
+        <p>
+          Each banner type keeps its own pity counter. The weapon banner ramps sooner (soft pity
+          ~63, hard pity 80) but its 5★ must also pass a 75/25 featured check - and your selected
+          weapon is one of two featured picks, so a single 5★ is only 37.5% to be yours without a
+          fate point.
+        </p>
+      </FAQItem>
+      <FAQItem question="Should I plan with Radiance on or off?">
+        <p>
+          Radiance is official but small (~+5 points on a losing 50/50 streak). Leave it on for
+          realistic expectations; switch it off when you want a conservative floor for saving
+          decisions. The guarantee math never depends on it.
+        </p>
+      </FAQItem>
+      <p>
+        More questions? <a href="/faq/">Read the full FAQ</a> ·
+        <a href="/wishes-needed/">Flip the question: wishes needed <Icon name="arrow-right" size={13} /></a>
+      </p>
+    </section>
+  </div>
+</BaseLayout>
+
+<script>
+  import {
+    BANNERS,
+    clampPity,
+    defaultParams,
+    featuredCurve,
+    fiveStarCurve,
+    wishesForConfidence,
+    worstCaseWishes,
+    type BannerKind,
+    type TargetParams,
+  } from '../lib/pity';
+  import { iconSvg } from '../lib/icons';
+
+  const $ = <T extends HTMLElement>(sel: string) => document.querySelector<T>(sel)!;
+
+  const form = $('#calcForm');
+  const pityInput = $<HTMLInputElement>('#pityInput');
+  const pityRange = $<HTMLInputElement>('#pityRange');
+  const pityHint = $('#pityHint');
+  const wishesInput = $<HTMLInputElement>('#wishesInput');
+  const wishesRange = $<HTMLInputElement>('#wishesRange');
+  const chart = document.querySelector('pity-chart')!;
+
+  let state: TargetParams & { wishes: number } = { ...defaultParams('character'), wishes: 80 };
+
+  const STORAGE_KEY = 'pityhub:calc';
+
+  function clampInt(v: string, min: number, max: number, fallback: number): number {
+    const n = parseInt(v, 10);
+    if (Number.isNaN(n)) return fallback;
+    return Math.max(min, Math.min(max, n));
+  }
+
+  function verdictFor(p: number): string {
+    if (p >= 0.999) return 'A certainty - the pity system owes you.';
+    if (p >= 0.9) return 'Very likely. Plan your celebration screenshot.';
+    if (p >= 0.7) return 'Good odds - most players in your spot succeed.';
+    if (p >= 0.5) return 'Coin-flip territory.';
+    if (p >= 0.3) return 'A real shot, but don\u2019t spend rent money.';
+    if (p >= 0.1) return 'Slim - soft pity may not even kick in.';
+    return 'Genuinely unlikely without more wishes.';
+  }
+
+  function syncVisibility(): void {
+    const isChar = state.banner === 'character';
+    const isWeapon = state.banner === 'weapon';
+    document.querySelectorAll<HTMLElement>('.only-character').forEach((el) => {
+      el.hidden = !isChar;
+    });
+    document.querySelectorAll<HTMLElement>('.only-weapon').forEach((el) => {
+      el.hidden = !isWeapon;
+    });
+    const maxPity = BANNERS[state.banner].hardPity - 1;
+    pityInput.max = String(maxPity);
+    pityRange.max = String(maxPity);
+    pityHint.textContent = `Wishes since your last 5★ on this banner type (0–${maxPity}). Find it in-game: open Wish History and count the pulls after your latest 5★.`;
+  }
+
+  function readFormToState(): void {
+    state.banner = (form.querySelector<HTMLInputElement>('input[name="banner"]:checked')?.value ??
+      'character') as BannerKind;
+    state.pity = clampInt(pityInput.value, 0, BANNERS[state.banner].hardPity - 1, 0);
+    state.state =
+      (form.querySelector<HTMLInputElement>('input[name="state"]:checked')?.value ?? 'fresh') as
+        | 'fresh'
+        | 'armed'
+        | 'guaranteed';
+    state.fatePoints =
+      (form.querySelector<HTMLInputElement>('input[name="fatePoints"]:checked')?.value === '1'
+        ? 1
+        : 0) as 0 | 1;
+    state.epitomized = $('#epitomizedToggle').checked;
+    state.radiance = $('#radianceToggle').checked;
+    state.wishes = clampInt(wishesInput.value, 1, 500, 80);
+  }
+
+  function recalc(): void {
+    const params: TargetParams = {
+      banner: state.banner,
+      pity: clampPity(state.banner, state.pity),
+      state: state.state,
+      fatePoints: state.fatePoints,
+      epitomized: state.epitomized,
+      radiance: state.radiance,
+    };
+    const b = BANNERS[state.banner];
+    const N = state.wishes;
+    const worst = worstCaseWishes(params);
+    const chartLen = Number.isFinite(worst) ? Math.max(worst, N) : Math.max(200, N + 60);
+
+    const target = featuredCurve(params, chartLen);
+    const anyFive = fiveStarCurve(params.banner, params.pity, chartLen);
+    const prob = Math.min(target[N] ?? 1, 1);
+    const n50 = wishesForConfidence(params, 0.5);
+    const n90 = wishesForConfidence(params, 0.9);
+
+    const desc =
+      state.banner === 'character'
+        ? 'the featured 5★ character'
+        : state.banner === 'weapon'
+          ? 'your selected 5★ weapon'
+          : 'any 5★';
+    $('#targetDesc').textContent = desc;
+    $('#wishesEcho').textContent = `${N} wish${N === 1 ? '' : 'es'} (${(N * 160).toLocaleString('en-US')} primogems)`;
+    $('#mainProb').textContent = `${(prob * 100).toFixed(1)}%`;
+    $('#mainVerdict').textContent = verdictFor(prob);
+    $('#statAny').textContent = `${((anyFive[N] ?? 1) * 100).toFixed(1)}%`;
+    $('#statMedian').textContent = String(n50);
+    $('#statP90').textContent = String(n90);
+    $('#statWorst').textContent = Number.isFinite(worst) ? String(worst) : '-';
+
+    chart.update({
+      type: 'line',
+      xLabel: `Wishes (soft pity at ${b.softPityStart})`,
+      yMax: 1,
+      series: [
+        {
+          name: `P(${desc.replace('the ', '').replace('your ', '')})`,
+          color: '#e8c268',
+          data: target,
+          area: true,
+        },
+        { name: 'P(any 5★)', color: '#6fd3c7', data: anyFive },
+      ],
+      guides: [
+        { y: 0.5, label: '50%' },
+        { y: 0.9, label: '90%' },
+      ],
+      markers: [{ x: N, label: `your ${N}` }],
+    });
+
+    $('#planLink').href = `/savings-planner/?wishes=${n90}`;
+    persist(params);
+  }
+
+  function writeStateToForm(): void {
+    form.querySelector<HTMLInputElement>(`input[name="banner"][value="${state.banner}"]`)!.checked = true;
+    form.querySelector<HTMLInputElement>(`input[name="state"][value="${state.state}"]`)!.checked = true;
+    form.querySelector<HTMLInputElement>(`input[name="fatePoints"][value="${state.fatePoints}"]`)!.checked = true;
+    $('#epitomizedToggle').checked = state.epitomized;
+    $('#radianceToggle').checked = state.radiance;
+    pityInput.value = String(state.pity);
+    pityRange.value = String(state.pity);
+    wishesInput.value = String(state.wishes);
+    wishesRange.value = String(Math.min(state.wishes, 300));
+  }
+
+  function syncUrl(): void {
+    const q = new URLSearchParams({
+      b: state.banner,
+      p: String(state.pity),
+      s: state.state,
+      r: state.radiance ? '1' : '0',
+      fp: String(state.fatePoints),
+      ep: state.epitomized ? '1' : '0',
+      n: String(state.wishes),
+    });
+    history.replaceState(null, '', `?${q.toString()}`);
+  }
+
+  function persist(params: TargetParams): void {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...params, wishes: state.wishes }));
+    } catch {
+      /* private mode */
+    }
+    syncUrl();
+  }
+
+  function restore(): boolean {
+    // URL first (shareable links), then localStorage, then defaults.
+    const q = new URLSearchParams(location.search);
+    if (q.size > 0) {
+      const banner = (q.get('b') ?? 'character') as BannerKind;
+      if (BANNERS[banner]) {
+        state = {
+          ...defaultParams(banner),
+          pity: clampInt(q.get('p') ?? '0', 0, 89, 0),
+          state: (['fresh', 'armed', 'guaranteed'].includes(q.get('s') ?? '')
+            ? q.get('s')
+            : 'fresh') as 'fresh' | 'armed' | 'guaranteed',
+          radiance: q.get('r') !== '0',
+          fatePoints: q.get('fp') === '1' ? 1 : 0,
+          epitomized: q.get('ep') !== '0',
+          wishes: clampInt(q.get('n') ?? '80', 1, 500, 80),
+        };
+        return true;
+      }
+    }
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        state = { ...state, ...JSON.parse(saved) };
+        return true;
+      }
+    } catch {
+      /* ignore */
+    }
+    return false;
+  }
+
+  // --- events ---
+  form.addEventListener('change', () => {
+    const beforeBanner = state.banner;
+    readFormToState();
+    if (beforeBanner !== state.banner) {
+      // keep pity but clamp to the new banner's range
+      state.pity = clampPity(state.banner, state.pity);
+    }
+    syncVisibility();
+    pityInput.value = String(state.pity);
+    pityRange.value = String(state.pity);
+    recalc();
+  });
+
+  for (const [input, range] of [
+    [pityInput, pityRange],
+    [wishesInput, wishesRange],
+  ] as const) {
+    input.addEventListener('input', () => {
+      readFormToState();
+      range.value = String(Math.min(Number(input.value || 0), Number(range.max)));
+      recalc();
+    });
+    range.addEventListener('input', () => {
+      input.value = range.value;
+      readFormToState();
+      recalc();
+    });
+  }
+
+  $('#copyLink').addEventListener('click', async (e) => {
+    const btn = e.currentTarget as HTMLButtonElement;
+    const reset = () => {
+      btn.innerHTML = `${iconSvg('link', 14)} Copy shareable link`;
+    };
+    try {
+      await navigator.clipboard.writeText(location.href);
+      btn.innerHTML = `${iconSvg('check-circle', 14)} Link copied`;
+      setTimeout(reset, 1600);
+    } catch {
+      btn.innerHTML = `${iconSvg('alert', 14)} Copy failed - use the address bar`;
+      setTimeout(reset, 2200);
+    }
+  });
+
+  restore();
+  writeStateToForm();
+  syncVisibility();
+  recalc();
+</script>

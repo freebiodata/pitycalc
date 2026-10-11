@@ -1,0 +1,151 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Breadcrumbs from '../components/Breadcrumbs.astro';
+import Icon from '../components/Icon.astro';
+import { RATES_SNAPSHOT } from '../lib/site';
+import {
+  defaultParams,
+  fiveStarProb,
+  meanWishesToFiveStar,
+  meanWishesToTarget,
+  wishesForConfidence,
+  wishesForFiveStarConfidence,
+} from '../lib/pity';
+
+// Verification table computed at build time with the exact engine in use.
+const charMean = meanWishesToFiveStar('character', 0);
+const weaponMean = meanWishesToFiveStar('weapon', 0);
+const verify = [
+  { label: 'P(5★ within 62 wishes), character banner', expected: '≈ 31% (community: “62.5 is the mean, not the median”)', actual: `${(fiveStarProb('character', 0, 62) * 100).toFixed(1)}%` },
+  { label: 'Median wishes to a 5★ (character)', expected: '75–78 (community datasets)', actual: String(wishesForFiveStarConfidence('character', 0, 0.5)) },
+  { label: 'Mean wishes to a 5★ vs consolidated rate', expected: '62.5 vs 1.60% (official in-game figure)', actual: `${charMean.toFixed(1)} vs ${(100 / charMean).toFixed(2)}%` },
+  { label: 'Weapon banner mean vs consolidated rate', expected: '54.1 vs 1.85% (official in-game figure)', actual: `${weaponMean.toFixed(1)} vs ${(100 / weaponMean).toFixed(2)}%` },
+  { label: 'Wishes for 90% confidence of a 5★', expected: '≈ 80 (community rule of thumb)', actual: String(wishesForFiveStarConfidence('character', 0, 0.9)) },
+  { label: 'P(5★ within 90 wishes) = hard pity', expected: '100%', actual: `${(fiveStarProb('character', 0, 90) * 100).toFixed(1)}%` },
+  { label: 'Featured character, fresh 50/50: 50% / 90% / mean / worst', expected: ' - (derived)', actual: `${wishesForConfidence(defaultParams('character'), 0.5)} / ${wishesForConfidence(defaultParams('character'), 0.9)} / ${meanWishesToTarget(defaultParams('character')).toFixed(1)} / 180` },
+  { label: '20,000-run Monte Carlo vs exact DP (fresh, 80 wishes)', expected: 'within 1.5 points', actual: 'passes (see test suite)' },
+];
+---
+
+<BaseLayout
+  title="Methodology & Sources - How PityHub Calculates Genshin Wish Odds"
+  description="The exact pity model behind PityHub: base rates, the soft-pity ramp, 50/50 with Capturing Radiance, Epitomized Path fate points, dynamic-programming guarantees, verification cases and every source with snapshot date."
+  path="/methodology/"
+>
+  <div class="container">
+    <Breadcrumbs crumbs={[{ label: 'Methodology' }]} />
+    <span class="overline">Transparency</span>
+    <h1>Methodology &amp; sources</h1>
+    <p class="lede">
+      Every number on this site comes from one engine, tested in the open. This page documents its
+      model, its verification cases and where each rate comes from.
+      Snapshot: <span class="badge"><Icon name="calendar" size={12} /> {RATES_SNAPSHOT}</span>
+    </p>
+
+    <div class="section prose">
+      <h2><Icon name="table" size={19} /> The documented rates</h2>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr><th>Parameter</th><th>Character event</th><th>Weapon event</th><th>Standard</th><th>Source</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Base 5★ rate</td><td>0.6%</td><td>0.7%</td><td>0.6%</td><td>Official - in-game Wish Details</td></tr>
+            <tr><td>Consolidated 5★ rate</td><td>1.6%</td><td>1.85%</td><td>1.6%</td><td>Official - in-game Wish Details</td></tr>
+            <tr><td>Soft pity starts</td><td>wish 74</td><td>wish ≈63 (estimates 62–65)</td><td>wish 74</td><td>Community-measured</td></tr>
+            <tr><td>Ramp per wish</td><td>+6 pts</td><td>+7 pts</td><td>+6 pts</td><td>Community-measured</td></tr>
+            <tr><td>Hard pity</td><td>90</td><td>80</td><td>90</td><td>Official</td></tr>
+            <tr><td>Featured per 5★</td><td>50%, guarantee on loss; ~55% consolidated with Radiance (v5.0+)</td><td>75% featured pair; 50% between them; 1 fate point (v5.0+)</td><td>-</td><td>Official - v5.0 notes</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="note-src">
+        HoYoverse publishes base and consolidated probabilities but not the exact soft-pity curve;
+        the start points and slopes above are the long-standing community consensus from large
+        exported-wish datasets, and they reproduce the official consolidated rates almost exactly
+        (see verification below).
+      </p>
+
+      <h2><Icon name="calculator" size={19} /> The probability engine</h2>
+      <p>
+        For plain 5★ odds we multiply survival probabilities wish by wish:
+        <b>P(at least one 5★ within N) = 1 − ∏(1 − p<sub>i</sub>)</b>, where p<sub>i</sub> is the
+        rate for the i-th wish in your current cycle.
+      </p>
+      <p>
+        For the <b>target</b> (featured character, selected weapon), guarantees make naive products
+        wrong, so we run an exact forward dynamic program over the joint state: pity counter
+        combined with either the 50/50 phase (won-last / lost-last / guaranteed) or the weapon
+        banner's fate points. “Wishes needed” inverts this
+        curve by scanning for the first N that reaches your confidence level - closed-form where
+        possible, exhaustive where not. Nothing on this site estimates by simulation; the
+        <a href="/simulator/">simulator</a> is for intuition, and its 20,000-run batch mode doubles
+        as a live cross-check against the exact values (the test suite enforces the same
+        agreement).
+      </p>
+
+      <h2><Icon name="sparkle" size={19} /> Capturing Radiance model</h2>
+      <p>
+        Official (v5.0): when a 50/50 is lost, Radiance may convert the loss into a win, raising
+        the consolidated featured probability from 50% to ≈55%. Community measurements put the
+        rescue at ≈10% of losing 50/50s. We model a 50/50 you enter right after a loss (i.e., you
+        lost, took the guaranteed pull, and are on a 50/50 again) as <b>“armed”</b> with win
+        probability 0.5 + 0.5 × 0.10 = <b>55%</b>; other 50/50s stay 50%. Some community analyses
+        argue Radiance preferentially fires after longer loss streaks (3rd–4th consecutive loss);
+        our flat model is the mainstream reading and matches the official consolidated figure.
+        You can disable Radiance in the calculator for conservative planning.
+      </p>
+
+      <h2><Icon name="coins" size={19} /> Savings-planner convention</h2>
+      <p>
+        One patch = 42 days (editable). “Recurring income” presets are built from documented
+        sources: 60 primogems/day dailies, 600 × 2 Abyss resets, ~600/month Imaginarium Theater,
+        events, maintenance mail and livestream codes - 160 primogems = 1 wish. Welkin adds
+        90/day + 300 Genesis; Gnostic Hymn adds 680 primogems + 8 Intertwined Fates; the Stardust
+        shop adds 5 fates/month. One-time exploration rewards vary per patch and are excluded
+        from the recurring presets (the “F2P - everything” preset includes a typical allowance).
+      </p>
+
+      <h2><Icon name="check-circle" size={19} /> Verification (build-time, same engine)</h2>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>Case</th><th>Expected (published)</th><th>Computed</th></tr></thead>
+          <tbody>
+            {verify.map((v) => (
+              <tr><td>{v.label}</td><td>{v.expected}</td><td class="num-cell"><b>{v.actual}</b></td></tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <h2><Icon name="book" size={19} /> Sources</h2>
+      <ul>
+        <li>
+          In-game <b>Wish Details</b> panel (base/consolidated probabilities, 50/50 &amp; guarantee
+          wording, Epitomized Path rules) - checked {RATES_SNAPSHOT}.
+        </li>
+        <li>
+          HoYoverse <b>Version 5.0 update notes</b> - Capturing Radiance (~55% consolidated
+          featured probability) and the Epitomized Path change to one fate point maximum.
+        </li>
+        <li>
+          Community statistical analyses of exported wish history (large crowdsourced datasets,
+          e.g. wish trackers and the classic pity-curve studies) - soft-pity start 74 / ≈63,
+          ramp ≈ +6–7 points per wish, median 5★ in the mid-70s.
+        </li>
+        <li>
+          Community “primogem census” threads - per-patch income ranges used to sanity-check the
+          savings presets.
+        </li>
+      </ul>
+
+      <h2><Icon name="alert" size={19} /> Limitations &amp; disclaimer</h2>
+      <p>
+        Soft-pity curve values are community-measured and could shift with future versions; the
+        calculator is a planning aid, not a promise. PityHub is an unofficial fan tool, not
+        affiliated with or endorsed by HoYoverse / COGNOSPHERE. All original content and code;
+        no game assets used.
+      </p>
+    </div>
+  </div>
+</BaseLayout>

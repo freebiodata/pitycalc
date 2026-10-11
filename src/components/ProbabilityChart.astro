@@ -1,0 +1,308 @@
+---
+/**
+ * <pity-chart> - dependency-free canvas chart for probability curves and
+ * histograms. Configure from any page script via `chart.update(cfg)`.
+ */
+interface Props {
+  title?: string;
+  height?: number;
+}
+const { title = '', height } = Astro.props;
+---
+<div class="chart-wrap glass">
+  {
+    title && (
+      <div class="chart-head">
+        <span class="chart-title">{title}</span>
+      </div>
+    )
+  }
+  <div class="legend" data-chart-legend aria-hidden="true"></div>
+  <pity-chart {title} {height}>
+    <canvas role="img" aria-label="Probability chart"></canvas>
+    <div class="chart-tooltip"></div>
+  </pity-chart>
+</div>
+
+<script>
+  interface ChartSeries {
+    name: string;
+    color: string;
+    data: number[];
+    area?: boolean;
+  }
+  interface ChartGuide {
+    y: number;
+    label: string;
+  }
+  interface ChartMarker {
+    x: number;
+    label: string;
+  }
+  interface ChartConfig {
+    type?: 'line' | 'bar';
+    series: ChartSeries[];
+    yMax?: number;
+    guides?: ChartGuide[];
+    markers?: ChartMarker[];
+    xLabel?: string;
+    formatYTick?: (v: number) => string;
+  }
+
+  const cssVar = (name: string, fallback: string): string => {
+    const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return v || fallback;
+  };
+
+  class PityChart extends HTMLElement {
+    private cfg: ChartConfig | null = null;
+    private canvas: HTMLCanvasElement;
+    private tooltip: HTMLElement;
+    private hoverIdx = -1;
+    private ro: ResizeObserver | null = null;
+
+    constructor() {
+      super();
+      this.canvas = this.querySelector('canvas') as HTMLCanvasElement;
+      this.tooltip = this.querySelector('.chart-tooltip') as HTMLElement;
+    }
+
+    connectedCallback(): void {
+      this.ro = new ResizeObserver(() => this.draw());
+      this.ro.observe(this);
+      this.canvas.addEventListener('pointermove', (e) => this.onMove(e));
+      this.canvas.addEventListener('pointerleave', () => {
+        this.hoverIdx = -1;
+        this.tooltip.classList.remove('show');
+        this.draw();
+      });
+    }
+
+    disconnectedCallback(): void {
+      this.ro?.disconnect();
+    }
+
+    update(cfg: ChartConfig): void {
+      this.cfg = cfg;
+      const legend = this.closest('.chart-wrap')?.querySelector<HTMLElement>('[data-chart-legend]');
+      if (legend && cfg.series.length > 1) {
+        legend.innerHTML = cfg.series
+          .map(
+            (s) =>
+              `<span><i style="background:${s.color};box-shadow:0 0 8px ${s.color}"></i>${s.name}</span>`,
+          )
+          .join('');
+        legend.style.display = 'flex';
+      } else if (legend) {
+        legend.style.display = 'none';
+      }
+      const last = cfg.series[0]?.data;
+      const aria =
+        cfg.series.length === 1 && last
+          ? `${cfg.series[0].name} chart, final value ${(last[last.length - 1] * 100).toFixed(1)}%.`
+          : `Chart of ${cfg.series.map((s) => s.name).join(' and ')}.`;
+      this.canvas.setAttribute('aria-label', aria);
+      this.draw();
+    }
+
+    private pad = { l: 46, r: 14, t: 12, b: 32 };
+
+    private xToIdx(px: number): number {
+      const cfg = this.cfg;
+      if (!cfg) return -1;
+      const w = this.canvas.clientWidth;
+      const n = cfg.series[0]?.data.length ?? 0;
+      const inner = w - this.pad.l - this.pad.r;
+      const t = (px - this.pad.l) / Math.max(1, inner);
+      return Math.max(0, Math.min(n - 1, Math.round(t * (n - 1))));
+    }
+
+    private onMove(e: PointerEvent): void {
+      const cfg = this.cfg;
+      if (!cfg) return;
+      const rect = this.canvas.getBoundingClientRect();
+      const idx = this.xToIdx(e.clientX - rect.left);
+      if (idx < 0) return;
+      this.hoverIdx = idx;
+      const lines = cfg.series
+        .filter((s) => s.data[idx] !== undefined)
+        .map(
+          (s) =>
+            `<div><span style="color:${s.color}">●</span> ${s.name}: <b>${(
+              (s.data[idx] ?? 0) * 100
+            ).toFixed(1)}%</b></div>`,
+        );
+      this.tooltip.innerHTML = `<div style="color:#9d96c9">${cfg.xLabel ?? 'X'} ${idx}</div>${lines.join('')}`;
+      this.tooltip.classList.add('show');
+      const wrap = this.getBoundingClientRect();
+      const tx = Math.min(Math.max(e.clientX - wrap.left + 14, 8), wrap.width - 150);
+      const ty = Math.max(e.clientY - wrap.top - 48, 8);
+      this.tooltip.style.left = `${tx}px`;
+      this.tooltip.style.top = `${ty}px`;
+      this.draw();
+    }
+
+    draw(): void {
+      const cfg = this.cfg;
+      if (!cfg) return;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const w = this.canvas.clientWidth || 600;
+      const h = this.height || this.canvas.clientHeight || 320;
+      this.canvas.width = Math.round(w * dpr);
+      this.canvas.height = Math.round(h * dpr);
+      const ctx = this.canvas.getContext('2d');
+      if (!ctx) return;
+      ctx.scale(dpr, dpr);
+      ctx.clearRect(0, 0, w, h);
+
+      const { l, r, t, b } = this.pad;
+      const iw = w - l - r;
+      const ih = h - t - b;
+      const yMax = cfg.yMax ?? 1;
+      const n = cfg.series[0]?.data.length ?? 0;
+      const ink = 'rgba(237,232,255,0.55)';
+      const grid = 'rgba(235,230,255,0.08)';
+      const mute = cssVar('--ink-mute', '#9d96c9');
+      const fmtYTick = cfg.formatYTick ?? ((v: number) => `${(v * 100).toFixed(0)}%`);
+
+      // y grid + labels
+      ctx.font = '11px Sora, system-ui, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      for (let i = 0; i <= 4; i++) {
+        const yv = (i / 4) * yMax;
+        const y = t + ih - (i / 4) * ih;
+        ctx.strokeStyle = grid;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(l, y);
+        ctx.lineTo(w - r, y);
+        ctx.stroke();
+        ctx.fillStyle = mute;
+        ctx.fillText(fmtYTick(yv), l - 8, y);
+      }
+
+      // x labels (nice round steps)
+      const data = cfg.series[0]?.data ?? [];
+      const step = Math.max(1, Math.ceil((n - 1) / 8 / 5) * 5);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      for (let i = 0; i < n; i += step) {
+        const x = l + (n <= 1 ? 0 : (i / (n - 1)) * iw);
+        ctx.fillStyle = mute;
+        ctx.fillText(String(i), x, t + ih + 8);
+      }
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'bottom';
+      ctx.fillStyle = mute;
+      ctx.fillText(cfg.xLabel ?? 'Wishes', w - r, h - 2);
+
+      // dashed guides (e.g. 50% / 90%)
+      ctx.setLineDash([5, 5]);
+      for (const g of cfg.guides ?? []) {
+        const y = t + ih - (g.y / yMax) * ih;
+        ctx.strokeStyle = 'rgba(111,211,199,0.5)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(l, y);
+        ctx.lineTo(w - r, y);
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(111,211,199,0.85)';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(g.label, l + 4, y - 2);
+      }
+      ctx.setLineDash([]);
+
+      const xOf = (i: number) => l + (n <= 1 ? 0 : (i / (n - 1)) * iw);
+      const yOf = (v: number) => t + ih - (v / yMax) * ih;
+
+      if (cfg.type === 'bar') {
+        const s = cfg.series[0];
+        const bw = Math.max(2, (iw / Math.max(1, n)) * 0.72);
+        for (let i = 0; i < n; i++) {
+          const v = s.data[i];
+          const x = l + (iw / n) * (i + 0.5) - bw / 2;
+          const y = yOf(v);
+          const grad = ctx.createLinearGradient(0, y, 0, t + ih);
+          grad.addColorStop(0, s.color);
+          grad.addColorStop(1, 'rgba(232,194,104,0.25)');
+          ctx.fillStyle = grad;
+          ctx.fillRect(x, y, bw, t + ih - y);
+        }
+      } else {
+        for (const s of cfg.series) {
+          if (s.area) {
+            const grad = ctx.createLinearGradient(0, t, 0, t + ih);
+            grad.addColorStop(0, `${s.color}38`);
+            grad.addColorStop(1, `${s.color}05`);
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.moveTo(xOf(0), t + ih);
+            for (let i = 0; i < n; i++) ctx.lineTo(xOf(i), yOf(s.data[i]));
+            ctx.lineTo(xOf(n - 1), t + ih);
+            ctx.closePath();
+            ctx.fill();
+          }
+          ctx.strokeStyle = s.color;
+          ctx.lineWidth = 2.4;
+          ctx.shadowColor = s.color;
+          ctx.shadowBlur = 9;
+          ctx.lineJoin = 'round';
+          ctx.beginPath();
+          for (let i = 0; i < n; i++) {
+            const x = xOf(i);
+            const y = yOf(s.data[i]);
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+          ctx.shadowBlur = 0;
+        }
+      }
+
+      // markers (vertical line, e.g. the user's chosen budget)
+      for (const m of cfg.markers ?? []) {
+        const x = xOf(Math.max(0, Math.min(n - 1, m.x)));
+        ctx.strokeStyle = 'rgba(244,220,160,0.65)';
+        ctx.lineWidth = 1.4;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(x, t);
+        ctx.lineTo(x, t + ih);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = 'rgba(244,220,160,0.9)';
+        ctx.textAlign = x > l + iw * 0.7 ? 'right' : 'left';
+        ctx.textBaseline = 'top';
+        ctx.fillText(m.label, x + (x > l + iw * 0.7 ? -5 : 5), t + 2);
+      }
+
+      // hover crosshair + dots
+      if (this.hoverIdx >= 0 && this.hoverIdx < n) {
+        const x = xOf(this.hoverIdx);
+        ctx.strokeStyle = 'rgba(237,232,255,0.35)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, t);
+        ctx.lineTo(x, t + ih);
+        ctx.stroke();
+        if (cfg.type !== 'bar') {
+          for (const s of cfg.series) {
+            ctx.fillStyle = s.color;
+            ctx.shadowColor = s.color;
+            ctx.shadowBlur = 12;
+            ctx.beginPath();
+            ctx.arc(x, yOf(s.data[this.hoverIdx]), 4.2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+          }
+        }
+      }
+    }
+  }
+
+  if (!customElements.get('pity-chart')) {
+    customElements.define('pity-chart', PityChart as unknown as CustomElementConstructor);
+  }
+</script>

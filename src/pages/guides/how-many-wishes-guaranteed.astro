@@ -1,0 +1,124 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Breadcrumbs from '../../components/Breadcrumbs.astro';
+import Icon from '../../components/Icon.astro';
+import { RATES_SNAPSHOT } from '../../lib/site';
+import { defaultParams, wishesForConfidence, worstCaseWishes } from '../../lib/pity';
+
+const charFresh = defaultParams('character');
+const charGuar = { ...charFresh, state: 'guaranteed' as const };
+const weaponFresh = defaultParams('weapon');
+const weaponFp = { ...weaponFresh, fatePoints: 1 as const };
+
+const scenarios = [
+  { label: 'Featured character - fresh 50/50', params: charFresh },
+  { label: 'Featured character - guaranteed active', params: charGuar },
+  { label: 'Selected weapon - Epitomized Path, 0 fate points', params: weaponFresh },
+  { label: 'Selected weapon - 1 fate point', params: weaponFp },
+];
+
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: 'How Many Wishes for a Guaranteed Character in Genshin Impact?',
+    description:
+      'The full wish-budget ladder: 180 for a guaranteed character from a fresh 50/50, 160 for a selected weapon, plus 50/90/99% confidence budgets and constellation math.',
+    datePublished: '2026-10-11',
+    author: { '@type': 'Organization', name: 'PityHub' },
+    publisher: { '@type': 'Organization', name: 'PityHub' },
+    mainEntityOfPage: 'https://pitycalc.top/guides/how-many-wishes-guaranteed/',
+  },
+];
+---
+
+<BaseLayout
+  title="How Many Wishes for a Guaranteed Character in Genshin? (180 · 155 · 80)"
+  description={`The Genshin wish-budget ladder: 180 wishes guarantees a character from a fresh 50/50, 160 guarantees your weapon, ~155 gives 90% confidence. Full tables for constellations and refinements. Snapshot ${RATES_SNAPSHOT}.`}
+  path="/guides/how-many-wishes-guaranteed/"
+  ogType="article"
+  jsonLd={jsonLd}
+>
+  <div class="container">
+    <Breadcrumbs crumbs={[{ href: '/guides/', label: 'Guides' }, { label: 'Wishes for a Guarantee' }]} />
+    <article class="prose">
+      <span class="overline">Guide</span>
+      <h1>How many wishes for a guaranteed 5★?</h1>
+      <p>
+        “Guaranteed” in Genshin means the mathematical worst case - the budget after which the
+        system <i>must</i> hand you the character or weapon you chose. It's the right number for
+        zero-risk planning and the wrong number for realistic expectation, because soft pity
+        usually delivers far sooner. Here's the whole ladder.
+      </p>
+
+      <h2><Icon name="star4" size={19} /> The headline numbers</h2>
+      <ul>
+        <li><b>180 wishes</b> (28,800 primogems) - hard guarantee of the featured character from a fresh 50/50.</li>
+        <li><b>90 wishes</b> - hard guarantee if your next 5★ is already guaranteed (you lost a 50/50).</li>
+        <li><b>160 wishes</b> - hard guarantee of your selected weapon with Epitomized Path (1 fate point, v5.0+).</li>
+        <li><b>~155 wishes</b> - 90% confidence for the featured character from a fresh 50/50.</li>
+        <li><b>~80 wishes</b> - the 50/50 point: a coin-flip at the character.</li>
+      </ul>
+
+      <h2><Icon name="table" size={19} /> Every level, computed exactly</h2>
+      <p>
+        Computed at build time with our engine (pity 0, Radiance on, Epitomized Path on):
+      </p>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>Scenario</th><th>50% chance</th><th>90% chance</th><th>99% chance</th><th>Guarantee</th></tr></thead>
+          <tbody>
+            {scenarios.map((s) => (
+              <tr>
+                <td>{s.label}</td>
+                <td class="num-cell">{wishesForConfidence(s.params, 0.5)}</td>
+                <td class="num-cell"><b>{wishesForConfidence(s.params, 0.9)}</b></td>
+                <td class="num-cell">{wishesForConfidence(s.params, 0.99)}</td>
+                <td class="num-cell">{worstCaseWishes(s.params)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <h2><Icon name="layers" size={19} /> Constellations and refinements stack the ladder</h2>
+      <p>
+        Each copy repeats the same ladder. Worst-case budget for a target number of copies
+        (starting fresh, guarantees included):
+      </p>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>Goal</th><th>Worst-case wishes</th><th>Primogems</th></tr></thead>
+          <tbody>
+            <tr><td>C0 - first copy of the character</td><td class="num-cell">180</td><td class="num-cell">28,800</td></tr>
+            <tr><td>C1 - two copies</td><td class="num-cell">360</td><td class="num-cell">57,600</td></tr>
+            <tr><td>C2 - three copies</td><td class="num-cell">540</td><td class="num-cell">86,400</td></tr>
+            <tr><td>C6 - seven copies</td><td class="num-cell">1,260</td><td class="num-cell">201,600</td></tr>
+            <tr><td>R1 - first copy of the weapon</td><td class="num-cell">160</td><td class="num-cell">25,600</td></tr>
+            <tr><td>R5 - five copies of the weapon</td><td class="num-cell">800</td><td class="num-cell">128,000</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="note-src">
+        Capturing Radiance (v5.0+) nudges the <i>expected</i> cost down slightly (a ~55% featured
+        rate instead of 50%) but never changes the worst case.
+      </p>
+
+      <h2><Icon name="scale" size={19} /> Which number should you save for?</h2>
+      <p>
+        Save to your risk tolerance. The 90% budget ({wishesForConfidence(charFresh, 0.9)} for a
+        fresh character) is the community sweet spot: you fail only one plan in ten, and you bank
+        the leftover ~25 wishes toward the next target. Full-guarantee savers sleep perfectly but
+        hold wishes idle for extra patches - with soft pity, unspent wishes are unearned 5★s.
+        Run your own numbers on the <a href="/wishes-needed/">wishes-needed calculator</a>, then
+        turn the result into a saving timeline with the
+        <a href="/savings-planner/">savings planner</a>.
+      </p>
+
+      <p class="note-src">
+        All figures from our documented model - see the <a href="/methodology/">methodology</a>.
+        Snapshot {RATES_SNAPSHOT}.
+      </p>
+    </article>
+  </div>
+</BaseLayout>

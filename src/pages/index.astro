@@ -1,0 +1,184 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import ToolCard from '../components/ToolCard.astro';
+import FAQItem from '../components/FAQItem.astro';
+import Icon from '../components/Icon.astro';
+import { RATES_SNAPSHOT } from '../lib/site';
+import {
+  BANNERS,
+  meanWishesToFiveStar,
+  wishesForFiveStarConfidence,
+} from '../lib/pity';
+
+// Build-time verified numbers (see /methodology/ for derivations).
+const meanFive = meanWishesToFiveStar('character', 0); // ≈ 62
+const medianFive = wishesForFiveStarConfidence('character', 0, 0.5); // ≈ 76
+const p90Five = wishesForFiveStarConfidence('character', 0, 0.9); // ≈ 80
+---
+
+<BaseLayout
+  title="Genshin Pity Calculator - Exact 5★ Odds, Soft Pity & Wish Planning | PityHub"
+  description={`Free Genshin Impact pity calculator: exact probability of pulling a 5★ within any number of wishes, soft pity from 74, 50/50 with Capturing Radiance, and a savings planner. Rates snapshot ${RATES_SNAPSHOT}.`}
+  path="/"
+>
+  <section class="hero">
+    <div class="shooting-star" aria-hidden="true"></div>
+    <div class="shooting-star delay" aria-hidden="true"></div>
+    <div class="container">
+      <span class="overline">Free · No login · Runs in your browser</span>
+      <h1>Genshin <em>pity calculator</em> &amp; wish planner</h1>
+      <p class="lede">
+        Exact odds from the documented wish system - soft pity, hard pity, the 50/50 with
+        Capturing Radiance, and Epitomized Path fate points. Find your real chances before you
+        spend a single primogem.
+      </p>
+      <div class="hero-actions">
+        <a href="/pity-calculator/" class="btn btn-primary">
+          <Icon name="star4" size={16} />
+          Open the Pity Calculator
+        </a>
+        <a href="/wishes-needed/" class="btn btn-ghost"><Icon name="scale" size={16} /> How many wishes do I need?</a>
+      </div>
+      <div class="hero-trust">
+        <span><Icon name="check" size={14} /> Based on documented rates</span>
+        <span><Icon name="check" size={14} /> Exact math, not estimates</span>
+        <span><Icon name="check" size={14} /> No account, no tracking</span>
+        <span><Icon name="check" size={14} /> Snapshot: {RATES_SNAPSHOT}</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="container">
+    <section class="section" aria-label="Verified pity numbers">
+      <div class="stats-row">
+        <div class="stat glass">
+          <span class="num">{medianFive}</span>
+          <span class="lbl"><Icon name="clock" size={13} /> Median wishes to a 5★</span>
+        </div>
+        <div class="stat glass tealish">
+          <span class="num">{meanFive.toFixed(0)}</span>
+          <span class="lbl"><Icon name="scale" size={13} /> Average wishes to a 5★</span>
+        </div>
+        <div class="stat glass">
+          <span class="num">{BANNERS.character.softPityStart}</span>
+          <span class="lbl"><Icon name="zap" size={13} /> Soft pity starts (character)</span>
+        </div>
+        <div class="stat glass tealish">
+          <span class="num">{p90Five}</span>
+          <span class="lbl"><Icon name="shield-check" size={13} /> Wishes for 90% confidence</span>
+        </div>
+      </div>
+      <p class="note-src" style="margin-top:12px">
+        Computed with the documented model (base 0.6%, soft pity ramp from wish 74, hard pity 90) - 
+        the same numbers power every tool on this site. Full derivation on the
+        <a href="/methodology/">methodology page</a>.
+      </p>
+    </section>
+
+    <section class="section" aria-labelledby="tools-h">
+      <span class="overline">The toolkit</span>
+      <h2 id="tools-h">Four calculators, one wish system</h2>
+      <div class="tools-grid">
+        <ToolCard
+          href="/pity-calculator/"
+          title="Pity Calculator"
+          desc="Your pity counter, 50/50 state and Capturing Radiance - get the exact probability of pulling your 5★ within N wishes, with a full probability curve."
+        >
+          <Icon slot="icon" name="star4" size={22} />
+        </ToolCard>
+        <ToolCard
+          href="/wishes-needed/"
+          title="Wishes Needed"
+          desc="Reverse the question: how many wishes give you a 50%, 90% or 99% chance - or a hard guarantee - for character, weapon and standard banners."
+          variant="teal"
+        >
+          <Icon slot="icon" name="scale" size={22} />
+        </ToolCard>
+        <ToolCard
+          href="/savings-planner/"
+          title="Savings Planner"
+          desc="Know how many wishes you need? Enter what you own and your income - F2P, Welkin or Welkin+BP - and see how many patches and days of saving remain."
+        >
+          <Icon slot="icon" name="coins" size={22} />
+        </ToolCard>
+        <ToolCard
+          href="/simulator/"
+          title="50/50 Simulator"
+          desc="Feel the odds before you live them: simulate pulls with the documented rates, watch Radiance rescues, and run 10,000 campaigns to see the true distribution."
+          variant="teal"
+        >
+          <Icon slot="icon" name="dice" size={22} />
+        </ToolCard>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="system-h">
+      <span class="overline">30-second primer</span>
+      <h2 id="system-h">How the pity system works</h2>
+      <div class="tools-grid">
+        <div class="glass glass-pad">
+          <h3><Icon name="hash" size={17} /> 1 · The pity counter</h3>
+          <p class="note-src" style="font-size:0.95rem;color:var(--ink-soft)">
+            Every wish without a 5★ bumps your hidden counter by one. The base 5★ rate is only
+            0.6% per wish - but the counter never resets between banners of the same type, so
+            patience compounds.
+          </p>
+        </div>
+        <div class="glass glass-pad">
+          <h3><Icon name="zap" size={17} /> 2 · Soft pity &amp; hard pity</h3>
+          <p class="note-src" style="font-size:0.95rem;color:var(--ink-soft)">
+            From wish <b style="color:var(--gold-soft)">74</b> (character banner) the rate climbs
+            about +6% per wish, so most 5★s land in the 74–80 range. Wish
+            <b style="color:var(--gold-soft)">90</b> is the hard pity - a guaranteed 5★.
+          </p>
+        </div>
+        <div class="glass glass-pad">
+          <h3><Icon name="scale" size={17} /> 3 · 50/50, Radiance &amp; fate points</h3>
+          <p class="note-src" style="font-size:0.95rem;color:var(--ink-soft)">
+            A character-banner 5★ is the featured one half the time; losing guarantees the next.
+            Since v5.0, <b style="color:var(--gold-soft)">Capturing Radiance</b> nudges that to
+            ~55% overall, and the weapon banner guarantees your chosen weapon after one fate point.
+          </p>
+        </div>
+      </div>
+      <p style="margin-top:18px">
+        <a href="/guides/soft-pity-explained/">Read the full soft pity guide <Icon name="arrow-right" size={13} /></a>
+      </p>
+    </section>
+
+    <section class="section faq" aria-labelledby="faq-h">
+      <span class="overline">Common questions</span>
+      <h2 id="faq-h">Genshin pity FAQ</h2>
+      <FAQItem question="When does soft pity start?">
+        <p>
+          Around wish <b>74</b> on the character and standard banners - the per-wish 5★ rate jumps
+          from 0.6% to roughly 6.6% and climbs ~6 percentage points per wish until the hard pity at
+          90. On the weapon banner soft pity begins near wish <b>63</b>, with hard pity at 80.
+        </p>
+      </FAQItem>
+      <FAQItem question="Does pity carry over between banners?">
+        <p>
+          Yes - your 5★ pity counter and your guarantee status carry over between banners of the
+          same type (one character event banner to the next, weapon to weapon, standard to
+          standard). Weapon-banner fate points also persist between weapon banners, but nothing
+          carries between different banner types.
+        </p>
+      </FAQItem>
+      <FAQItem question="How many wishes for a guaranteed 5★ character?">
+        <p>
+          Worst case <b>180 wishes</b> from a fresh 50/50 (lose the 50/50 at hard pity 90, then
+          guarantee at another 90). If your next 5★ is already guaranteed, it's
+          <b>90 wishes</b> at most - and soft pity means most players get there around 76–80.
+        </p>
+      </FAQItem>
+      <FAQItem question="Is 62 wishes really a 50% chance at a 5★?">
+        <p>
+          No - that's a persistent mix-up. <b>62.5 is the average</b> (the official 1.6%
+          consolidated rate), but averages sit below the median for this system. The real numbers:
+          62 wishes ≈ 31% chance, the 50/50 point is ~76 wishes, and 90% confidence needs ~80.
+        </p>
+      </FAQItem>
+      <p style="margin-top:16px"><a href="/faq/">See all FAQ <Icon name="arrow-right" size={13} /></a></p>
+    </section>
+  </div>
+</BaseLayout>

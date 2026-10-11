@@ -1,0 +1,31 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Icon from '../components/Icon.astro';
+import { NAV_LINKS } from '../lib/site';
+---
+
+<BaseLayout
+  title="404 - Page not found"
+  description="This page wandered off the map. Head back to PityHub's Genshin pity calculators."
+  path="/404"
+  noindex
+>
+  <div class="container" style="text-align:center;padding-block:90px 60px">
+    <span style="display:inline-block;color:var(--gold);filter:drop-shadow(0 0 24px rgba(232,194,104,0.5))">
+      <Icon name="star4" size={64} />
+    </span>
+    <h1 style="margin-top:18px;margin-bottom:8px">Lost constellation</h1>
+    <p class="lede" style="margin-inline:auto">
+      This page isn't on the star chart (error 404). Your pity is safe - nothing was spent.
+    </p>
+    <div class="hero-actions" style="justify-content:center">
+      <a href="/" class="btn btn-primary"><Icon name="home" size={15} /> Back to home</a>
+      <a href="/pity-calculator/" class="btn btn-ghost"><Icon name="calculator" size={15} /> Pity calculator</a>
+    </div>
+    <p style="margin-top:34px" class="note-src">
+      {NAV_LINKS.map((l) => (
+        <a href={l.href} style="margin-inline:8px">{l.label}</a>
+      ))}
+    </p>
+  </div>
+</BaseLayout>

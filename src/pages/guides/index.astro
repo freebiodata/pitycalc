@@ -1,0 +1,60 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Breadcrumbs from '../../components/Breadcrumbs.astro';
+import Icon from '../../components/Icon.astro';
+
+const guides = [
+  {
+    href: '/guides/soft-pity-explained/',
+    title: 'Genshin Soft Pity Explained',
+    desc: 'Where the invisible rate ramp starts, what it does to your odds, and why the median 5★ lands at wish 76 - not 90.',
+    icon: 'zap',
+  },
+  {
+    href: '/guides/how-many-wishes-guaranteed/',
+    title: 'How Many Wishes for a Guaranteed Character?',
+    desc: '180, 90, 155 - the wish budget ladder for characters, weapons and constellations, at every confidence level.',
+    icon: 'shield-check',
+  },
+  {
+    href: '/guides/capturing-radiance/',
+    title: 'Capturing Radiance, Explained',
+    desc: 'The v5.0 change that turned the 50/50 into ~55/45, how rescues work, and what it means for your saving plan.',
+    icon: 'sparkle',
+  },
+];
+---
+
+<BaseLayout
+  title="Genshin Wish Guides - Soft Pity, Guarantees & Capturing Radiance"
+  description="Plain-English guides to the Genshin Impact wish system: soft pity start points and rates, wish budgets for guaranteed 5★s, and how Capturing Radiance changes the 50/50."
+  path="/guides/"
+>
+  <div class="container">
+    <Breadcrumbs crumbs={[{ label: 'Guides' }]} />
+    <span class="overline">Learn the system</span>
+    <h1>Genshin wish guides</h1>
+    <p class="lede">
+      Everything the calculators assume, explained in plain language - with the same verified
+      numbers behind them.
+    </p>
+    <div class="section tools-grid">
+      {
+        guides.map((g) => (
+          <a href={g.href} class="tool-card glass">
+            <span class="icon-wrap" aria-hidden="true">
+              <Icon name={g.icon} size={22} />
+            </span>
+            <h3>{g.title}</h3>
+            <p>{g.desc}</p>
+            <span class="go">Read guide <Icon name="arrow-right" size={13} /></span>
+          </a>
+        ))
+      }
+    </div>
+    <div class="callout">
+      <b><Icon name="info" size={15} class="ci" /> Prefer answers to reading?</b> The <a href="/faq/">FAQ</a> covers the
+      twelve most-asked questions, and the <a href="/pity-calculator/">pity calculator</a> does the math for you.
+    </div>
+  </div>
+</BaseLayout>

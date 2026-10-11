@@ -1,0 +1,105 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Breadcrumbs from '../components/Breadcrumbs.astro';
+import FAQItem from '../components/FAQItem.astro';
+import Icon from '../components/Icon.astro';
+import { RATES_SNAPSHOT } from '../lib/site';
+
+const faqs: { q: string; a: string }[] = [
+  {
+    q: 'What is pity in Genshin Impact?',
+    a: 'Pity is the hidden counter that makes 5★s inevitable. Every wish that doesn\u2019t produce a 5★ increases your per-wish odds on that banner type; the counter persists between banners of the same type, so wishes are never “wasted” - they just move you closer.',
+  },
+  {
+    q: 'When does soft pity start?',
+    a: 'Around wish <b>74</b> on the character and standard banners: the 5★ rate jumps from 0.6% to roughly 6.6% and climbs about 6 percentage points per wish. On the weapon banner it starts near wish <b>63</b> and climbs ~7 points per wish. Most 5★s actually arrive in this soft window, long before hard pity.',
+  },
+  {
+    q: 'Does pity carry over between banners?',
+    a: 'Yes, between banners of the <b>same type</b>: your counter and guarantee status carry from one character event banner to the next, weapon to weapon, and the standard banner keeps its own separate counter. Weapon-banner fate points persist between weapon banners too. Nothing carries between different banner types - character pity never helps on the weapon banner.',
+  },
+  {
+    q: 'What is hard pity?',
+    a: 'The guaranteed-5★ point: wish <b>90</b> on character/standard banners, wish <b>80</b> on the weapon banner. If the rate ramp somehow never fired, the 90th (or 80th) wish is a 5★ with certainty.',
+  },
+  {
+    q: 'What happens if I lose the 50/50?',
+    a: 'You get a standard-pool 5★ character instead of the featured one - but your <b>next 5★ on that banner type is guaranteed to be the featured character</b>, no matter how many banners pass before you pull again. That guarantee is why 180 wishes is the worst case for a character.',
+  },
+  {
+    q: 'What is Capturing Radiance?',
+    a: 'A mechanic added in version 5.0. When a 50/50 would be lost, Radiance can convert the loss into a win for the featured character, raising the consolidated featured probability from 50% to about <b>55%</b>. Community data measures the rescue at roughly 10% of losing 50/50s. Our calculator models it exactly that way.',
+  },
+  {
+    q: 'How many wishes for a guaranteed 5★ character?',
+    a: 'Worst case <b>180</b> from a fresh 50/50 (two hard pities), or <b>90</b> if your next 5★ is already guaranteed. For 90% confidence you need about <b>155</b>, and the 50/50-point sits near <b>80</b>. The <a href="/wishes-needed/">wishes-needed calculator</a> computes your exact numbers.',
+  },
+  {
+    q: 'How many primogems is 180 wishes?',
+    a: '180 × 160 = <b>28,800 primogems</b>. A 160-wish weapon budget is 25,600 primogems. Daily commissions alone (60/day) take 480 days to reach 28,800 - which is why the <a href="/savings-planner/">savings planner</a> exists.',
+  },
+  {
+    q: 'How does the weapon banner guarantee work?',
+    a: 'Chart a course (Epitomized Path) for one of the two featured weapons. Each 5★ that isn\u2019t your pick grants a fate point; since version 5.0 the maximum is <b>one</b>, so your second 5★ is guaranteed to be the selected weapon. Worst case: <b>160 wishes</b>. A single 5★ is only 37.5% to be your pick (75% featured × 50% between the two).',
+  },
+  {
+    q: 'Do 10-pulls have better odds than single pulls?',
+    a: 'No. Every wish uses the same rates; a 10-pull is just ten wishes bundled (with a guaranteed 4★+ inside ten wishes of the 4★ counter). Pull singles near hard pity if you like stopping the moment the 5★ lands - the math is identical.',
+  },
+  {
+    q: 'Does the 4★ pity affect my 5★ odds?',
+    a: 'The 4★ system (base 5.1%, guaranteed 4★+ every 10 wishes) runs alongside the 5★ counter, but a 4★ result doesn\u2019t reset or slow your 5★ pity - only an actual 5★ does. Our simulator models both.',
+  },
+  {
+    q: 'Are these rates official?',
+    a: 'The base and consolidated rates are shown in-game under the Wish Details panel; the 50/50, guarantee, Radiance and fate-point rules come from HoYoverse\u2019s official version notes. The soft-pity ramp values (start points and slopes) are community-measured from millions of exported pulls, since HoYoverse doesn\u2019t publish the exact curve. Snapshot: ' +
+      RATES_SNAPSHOT +
+      '. Full sources: <a href="/methodology/">methodology</a>.',
+  },
+];
+
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: faqs.map((f) => ({
+      '@type': 'Question',
+      name: f.q,
+      acceptedAnswer: { '@type': 'Answer', text: f.a.replace(/<[^>]+>/g, '') },
+    })),
+  },
+];
+---
+
+<BaseLayout
+  title="Genshin Pity System FAQ - Soft Pity, Guarantees, Fate Points"
+  description="Answers to the most-asked Genshin Impact pity questions: when soft pity starts, whether pity carries over, what losing the 50/50 means, Capturing Radiance, and how many wishes a guarantee costs."
+  path="/faq/"
+  jsonLd={jsonLd}
+>
+  <div class="container">
+    <Breadcrumbs crumbs={[{ label: 'FAQ' }]} />
+    <span class="overline">Questions</span>
+    <h1>Genshin pity system FAQ</h1>
+    <p class="lede">
+      Twelve short answers about the wish system, from soft pity start points to fate-point
+      carryover - each backed by the documented rates on our
+      <a href="/methodology/">methodology page</a>.
+    </p>
+
+    <div class="section faq">
+      {faqs.map((f) => (
+        <FAQItem question={f.q}>
+          <p set:html={f.a} />
+        </FAQItem>
+      ))}
+    </div>
+
+    <div class="callout gold">
+      <b><Icon name="bulb" size={15} class="ci" /> Still deciding?</b> Plug your situation into the
+      <a href="/pity-calculator/">pity calculator</a> or let the
+      <a href="/wishes-needed/">wishes-needed tool</a> tell you what your goal costs at 50%, 90%
+      or full guarantee.
+    </div>
+  </div>
+</BaseLayout>

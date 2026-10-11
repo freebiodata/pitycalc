@@ -1,0 +1,19 @@
+---
+import Icon from '../components/Icon.astro';
+
+interface Props {
+  href: string;
+  title: string;
+  desc: string;
+  variant?: 'gold' | 'teal';
+}
+const { href, title, desc, variant = 'gold' } = Astro.props;
+---
+<a href={href} class={`tool-card glass ${variant === 'teal' ? 'tealish' : ''}`}>
+  <span class="icon-wrap" aria-hidden="true">
+    <slot name="icon" />
+  </span>
+  <h3>{title}</h3>
+  <p>{desc}</p>
+  <span class="go">Open tool <Icon name="arrow-right" size={13} /></span>
+</a>

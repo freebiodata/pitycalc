@@ -1,0 +1,9 @@
+# Cloudflare Pages redirects — https://developers.cloudflare.com/pages/configuration/redirects/
+/calculator	/pity-calculator/	301
+/calc	/pity-calculator/	301
+/planner	/savings-planner/	301
+/wishes	/wishes-needed/	301
+/sim	/simulator/	301
+/method	/methodology/	301
+/soft-pity	/guides/soft-pity-explained/	301
+/capturing-radiance	/guides/capturing-radiance/	301

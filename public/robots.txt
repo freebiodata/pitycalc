@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://pitycalc.top/sitemap-index.xml

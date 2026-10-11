@@ -1,0 +1,373 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import ProbabilityChart from '../components/ProbabilityChart.astro';
+import Breadcrumbs from '../components/Breadcrumbs.astro';
+import FAQItem from '../components/FAQItem.astro';
+import Icon from '../components/Icon.astro';
+import { RATES_SNAPSHOT } from '../lib/site';
+
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'WebApplication',
+    name: 'Genshin 50/50 Simulator',
+    applicationCategory: 'GameToolApplication',
+    operatingSystem: 'Any',
+    url: 'https://pitycalc.top/simulator/',
+    description:
+      'Simulate Genshin Impact wishes with the documented rates: pull sequences with the 50/50, Capturing Radiance and Epitomized Path, plus 10,000-run Monte Carlo statistics.',
+    offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+  },
+];
+---
+
+<BaseLayout
+  title="Genshin 50/50 & Wish Simulator - Documented Rates, 10,000-Run Stats"
+  description={`Simulate Genshin Impact wishes with the documented rates: watch the 50/50, Capturing Radiance and fate points play out, then run 10,000 campaigns for the true distribution. Snapshot ${RATES_SNAPSHOT}.`}
+  path="/simulator/"
+  jsonLd={jsonLd}
+>
+  <div class="container">
+    <Breadcrumbs crumbs={[{ label: '50/50 Simulator' }]} />
+
+    <span class="overline">Tool 4 of 4</span>
+    <h1>Genshin 50/50 &amp; wish simulator</h1>
+    <p class="lede">
+      The math says 55% - your heart says otherwise. Run your pull plan through the documented
+      rates first: every 5★, guarantee, Radiance rescue and fate point resolved wish-by-wish, then
+      sanity-check your luck across ten thousand parallel timelines. For education and expectation
+      management; the RNG here is not HoYoverse's RNG.
+    </p>
+
+    <div class="section">
+      <div class="tool-grid">
+        <!-- inputs -->
+        <form class="glass glass-pad" id="simForm" autocomplete="off">
+          <fieldset class="field">
+            <legend><Icon name="users" size={14} /> Banner</legend>
+            <div class="segmented" role="radiogroup" aria-label="Banner">
+              <input type="radio" id="b-character" name="banner" value="character" checked />
+              <label for="b-character"><Icon name="users" size={13} /> Character</label>
+              <input type="radio" id="b-weapon" name="banner" value="weapon" />
+              <label for="b-weapon"><Icon name="sword" size={13} /> Weapon</label>
+              <input type="radio" id="b-standard" name="banner" value="standard" />
+              <label for="b-standard"><Icon name="globe" size={13} /> Standard</label>
+            </div>
+          </fieldset>
+
+          <div class="grid-2">
+            <div class="field">
+              <label for="pityInput"><Icon name="hash" size={14} /> Starting pity</label>
+              <input type="number" id="pityInput" min="0" max="89" step="1" value="0" inputmode="numeric" />
+            </div>
+            <div class="field">
+              <label for="budgetInput"><Icon name="gem" size={14} /> Wishes to spend</label>
+              <input type="number" id="budgetInput" min="1" max="400" step="1" value="160" inputmode="numeric" />
+            </div>
+          </div>
+
+          <fieldset class="field only-character">
+            <legend><Icon name="scale" size={14} /> 50/50 situation</legend>
+            <div class="segmented" role="radiogroup" aria-label="50/50 state">
+              <input type="radio" id="s-fresh" name="state" value="fresh" checked />
+              <label for="s-fresh">Won last</label>
+              <input type="radio" id="s-armed" name="state" value="armed" />
+              <label for="s-armed">Lost last</label>
+              <input type="radio" id="s-guaranteed" name="state" value="guaranteed" />
+              <label for="s-guaranteed">Guaranteed</label>
+            </div>
+          </fieldset>
+
+          <fieldset class="field only-weapon" hidden>
+            <legend><Icon name="compass" size={14} /> Epitomized Path</legend>
+            <div class="segmented tealish" role="radiogroup" aria-label="Fate points">
+              <input type="radio" id="fp-0" name="fatePoints" value="0" checked />
+              <label for="fp-0">0 fate points</label>
+              <input type="radio" id="fp-1" name="fatePoints" value="1" />
+              <label for="fp-1">1 fate point</label>
+            </div>
+          </fieldset>
+
+          <div class="field">
+            <label for="seedInput"><Icon name="dice" size={14} /> Seed (optional)</label>
+            <input type="number" id="seedInput" min="1" max="2147483647" step="1" placeholder="random each run" inputmode="numeric" />
+            <p class="hint">Same seed, same sequence. Great for settling arguments.</p>
+          </div>
+
+          <div class="field" style="display:flex;flex-direction:column;gap:10px">
+            <button type="button" class="btn btn-primary" id="runOne"><Icon name="play" size={15} /> Wish once (sequence)</button>
+            <div class="grid-2">
+              <button type="button" class="btn btn-ghost btn-sm" id="run1k"><Icon name="layers" size={14} /> Run ×1,000</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="run10k"><Icon name="layers" size={14} /> Run ×10,000</button>
+            </div>
+          </div>
+        </form>
+
+        <!-- results -->
+        <div>
+          <div class="glass glass-pad" id="singleResults" aria-live="polite">
+            <h3 style="margin-bottom:6px">Your run</h3>
+            <p class="note-src" style="margin-bottom:12px" id="singleSummary">Set your situation and hit “Wish once”.</p>
+            <div class="pull-strip" id="pullStrip" aria-label="Pull history"></div>
+            <p class="note-src" style="margin:8px 0 0">
+              <span class="pull-dot" style="display:inline-block"></span> 3★ ·
+              <span class="pull-dot r4" style="display:inline-block"></span> 4★ ·
+              <span class="pull-dot r5" style="display:inline-block"></span> 5★ ·
+              <span class="pull-dot r5 featured" style="display:inline-block"></span> your target
+            </p>
+            <ul class="event-log" id="eventLog"></ul>
+            <div class="stats-row" style="margin-top:14px" id="singleStats"></div>
+          </div>
+
+          <div class="glass glass-pad" id="batchResults" style="margin-top:14px" aria-live="polite">
+            <h3 style="margin-bottom:6px">Monte Carlo - parallel timelines</h3>
+            <div class="stats-row">
+              <div class="stat glass">
+                <span class="num" id="mcProb">-</span>
+                <span class="lbl"><Icon name="dice" size={13} /> Runs with target</span>
+              </div>
+              <div class="stat glass tealish">
+                <span class="num" id="exactProb">-</span>
+                <span class="lbl"><Icon name="target" size={13} /> Exact math (DP)</span>
+              </div>
+              <div class="stat glass">
+                <span class="num" id="mcMedian">-</span>
+                <span class="lbl"><Icon name="clock" size={13} /> Median wish of target</span>
+              </div>
+              <div class="stat glass tealish">
+                <span class="num" id="mcP90">-</span>
+                <span class="lbl"><Icon name="trending-up" size={13} /> Slowest 10% by</span>
+              </div>
+            </div>
+            <div style="margin-top:14px">
+              <ProbabilityChart title="When the target arrived (share of runs)" />
+              <p class="note-src" style="margin-top:8px" id="histNote"></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <section class="section glass glass-pad">
+      <h2>What this simulator models</h2>
+      <p>
+        Every pull uses the documented per-wish rates - 0.6% base on character/standard banners
+        with the soft-pity ramp from wish 74 and hard pity at 90; 0.7% base on the weapon banner
+        ramping from ~63 with hard pity at 80. 5★ resolution follows the official rules: the 50/50
+        with guarantee, Capturing Radiance (v5.0+) as a 10% rescue on an armed losing 50/50, and
+        the one-fate-point Epitomized Path. 4★s use the simplified documented model (5.1% base,
+        guaranteed every 10th).
+      </p>
+      <p>
+        The Monte Carlo engine is the same one the calculator pages verify against - in our test
+        suite, 20,000 simulated runs agree with the exact dynamic-programming answer to within a
+        percentage point. Model details and sources: <a href="/methodology/">methodology</a>.
+        Snapshot <span class="badge">{RATES_SNAPSHOT}</span>
+      </p>
+      <div class="callout" style="margin-top:16px">
+        <b><Icon name="alert" size={15} class="ci" /> Reminder:</b> this is a fan-made educational tool. Real wishes happen in HoYoverse's
+        client with their servers' RNG - and cost real primogems. Simulate first, pull after.
+      </div>
+    </section>
+
+    <section class="section faq" aria-labelledby="sim-faq">
+      <h2 id="sim-faq">Simulator FAQ</h2>
+      <FAQItem question="Can this predict my pulls?">
+        <p>
+          No - nothing can. What it does is show you the shape of the randomness: how often a
+          160-wish budget ends without the character (about 1 run in 10), how Radiance rescues
+          feel, and why “I lost five 50/50s in a row” is painful but possible.
+        </p>
+      </FAQItem>
+      <FAQItem question="Why do 10,000 runs sometimes beat 1,000 to the exact answer?">
+        <p>
+          They converge: the Monte Carlo percentage drifts toward the exact dynamic-programming
+          value shown in teal as run count grows. Comparing the two is the point - it demonstrates
+          the law of large numbers on your own screen.
+        </p>
+      </FAQItem>
+      <FAQItem question="What does the seed do?">
+        <p>
+          It fixes the random sequence, like replaying the same timeline. Share a seed and a
+          friend gets the identical run - handy for comparing luck honestly.
+        </p>
+      </FAQItem>
+      <p><a href="/pity-calculator/">Ready for the real numbers? Open the pity calculator <Icon name="arrow-right" size={13} /></a></p>
+    </section>
+  </div>
+</BaseLayout>
+
+<script>
+  import {
+    BANNERS,
+    clampPity,
+    defaultParams,
+    featuredProb,
+    mulberry32,
+    simulate,
+    simulateBatch,
+    type BannerKind,
+    type TargetParams,
+  } from '../lib/pity';
+  import { iconSvg } from '../lib/icons';
+
+  const $ = <T extends HTMLElement>(sel: string) => document.querySelector<T>(sel)!;
+  const form = $('#simForm');
+  const pityInput = $<HTMLInputElement>('#pityInput');
+  const budgetInput = $<HTMLInputElement>('#budgetInput');
+  const seedInput = $<HTMLInputElement>('#seedInput');
+  const histChart = document.querySelector('pity-chart') as HTMLElement & {
+    update(cfg: unknown): void;
+  };
+
+  function params(): TargetParams {
+    const banner = (form.querySelector<HTMLInputElement>('input[name="banner"]:checked')?.value ??
+      'character') as BannerKind;
+    return {
+      banner,
+      pity: clampPity(banner, parseInt(pityInput.value || '0', 10) || 0),
+      state: (form.querySelector<HTMLInputElement>('input[name="state"]:checked')?.value ??
+        'fresh') as 'fresh' | 'armed' | 'guaranteed',
+      fatePoints: form.querySelector<HTMLInputElement>('input[name="fatePoints"]:checked')?.value === '1' ? 1 : 0,
+      epitomized: true,
+      radiance: true,
+    };
+  }
+
+  function seed(): number {
+    const v = parseInt(seedInput.value || '', 10);
+    if (!Number.isNaN(v) && v > 0) return v;
+    return Math.floor(Math.random() * 2 ** 31) + 1;
+  }
+
+  function targetName(p: TargetParams): string {
+    return p.banner === 'character'
+      ? 'featured character'
+      : p.banner === 'weapon'
+        ? 'selected weapon'
+        : '5★';
+  }
+
+  function renderSingle(): void {
+    const p = params();
+    const budget = Math.max(1, Math.min(400, parseInt(budgetInput.value || '160', 10) || 160));
+    const s = seed();
+    const res = simulate(p, budget, mulberry32(s));
+
+    $('#singleSummary').innerHTML = res.gotTarget
+      ? `Seed <b>${s}</b> - got the ${targetName(p)} at wish <b>${res.targetAtWish}</b> of ${budget}.`
+      : `Seed <b>${s}</b> - ${budget} wishes, no ${targetName(p)}. That happens ${(100 - featuredProb(p, budget) * 100).toFixed(1)}% of the time.`;
+
+    const strip = $('#pullStrip');
+    strip.innerHTML = res.rarities
+      .map((r, i) => {
+        if (r !== 5) return `<span class="pull-dot r${r}"></span>`;
+        const ev = res.events.find((e) => e.wish === i + 1);
+        return `<span class="pull-dot r5${ev?.target ? ' featured' : ''}" title="5★ at wish ${i + 1}"></span>`;
+      })
+      .join('');
+
+    const log = $('#eventLog');
+    const b = BANNERS[p.banner];
+    log.innerHTML = res.events
+      .map((ev) => {
+        let tag: string;
+        let detail: string;
+        if (p.banner === 'character') {
+          if (ev.viaGuarantee) {
+            tag = `<span class="tag guar">${iconSvg('shield-check', 13)} GUARANTEE</span>`;
+            detail = 'featured character via guarantee';
+          } else if (ev.radiance) {
+            tag = `<span class="tag radiance">${iconSvg('sparkle', 13)} RADIANCE</span>`;
+            detail = 'lost 50/50 rescued - featured character';
+          } else if (ev.target) {
+            tag = `<span class="tag win">${iconSvg('check-circle', 13)} WON 50/50</span>`;
+            detail = 'featured character';
+          } else {
+            tag = `<span class="tag loss">${iconSvg('x-circle', 13)} LOST 50/50</span>`;
+            detail = 'standard 5★ - next one is guaranteed';
+          }
+        } else if (p.banner === 'weapon') {
+          if (ev.viaFatePoint) {
+            tag = `<span class="tag guar">${iconSvg('compass', 13)} FATE POINT</span>`;
+            detail = 'selected weapon, guaranteed';
+          } else if (ev.target) {
+            tag = `<span class="tag win">${iconSvg('check-circle', 13)} SELECTED</span>`;
+            detail = 'your weapon directly (37.5%)';
+          } else {
+            const missLabel = ev.missKind === 'other-featured' ? 'OTHER FEATURED' : 'STANDARD 5★';
+            tag = `<span class="tag loss">${iconSvg('x-circle', 13)} ${missLabel}</span>`;
+            detail = ev.missKind === 'other-featured' ? 'the other featured weapon - +1 fate point' : 'off-banner weapon - +1 fate point';
+          }
+        } else {
+          tag = `<span class="tag win">${iconSvg('star4', 13)} 5★</span>`;
+          detail = 'standard banner pull';
+        }
+        return `<li><span class="wish-no">wish #${ev.wish} · pity ${ev.pityAt}</span>${tag}<span>${detail}</span></li>`;
+      })
+      .join('');
+
+    const targetCount = res.events.filter((e) => e.target).length;
+    $('#singleStats').innerHTML = [
+      { n: String(res.fiveStars), l: `5★ pulled (hard pity ${b.hardPity})`, ic: 'star4' },
+      { n: String(targetCount), l: `${targetName(p)}s`, ic: 'target' },
+      { n: String(res.radianceTriggers), l: 'Radiance rescues', ic: 'sparkle' },
+      { n: String(res.endPity), l: 'Pity after run', ic: 'hash' },
+    ]
+      .map(
+        (s2) =>
+          `<div class="stat glass"><span class="num">${s2.n}</span><span class="lbl">${iconSvg(s2.ic, 13)} ${s2.l}</span></div>`,
+      )
+      .join('');
+  }
+
+  function renderBatch(runs: number): void {
+    const p = params();
+    const budget = Math.max(1, Math.min(400, parseInt(budgetInput.value || '160', 10) || 160));
+    const s = seed();
+    const t0 = performance.now();
+    const batch = simulateBatch(p, budget, runs, s);
+    const dt = Math.round(performance.now() - t0);
+
+    const exact = featuredProb(p, budget);
+    $('#mcProb').textContent = `${(batch.empiricalProb * 100).toFixed(1)}%`;
+    $('#exactProb').textContent = `${(exact * 100).toFixed(1)}%`;
+    $('#mcMedian').textContent = Number.isNaN(batch.medianFirstTarget) ? '-' : String(Math.round(batch.medianFirstTarget));
+    $('#mcP90').textContent = Number.isNaN(batch.p90FirstTarget) ? '-' : String(Math.round(batch.p90FirstTarget));
+
+    // histogram of first-target wish, bins of 10
+    const bins = Math.ceil(budget / 10);
+    const counts = new Array<number>(bins).fill(0);
+    for (const w of batch.firstTargetSamples) counts[Math.min(bins - 1, Math.floor((w - 1) / 10))]++;
+    const data = counts.map((c) => c / runs);
+    const labels = Array.from({ length: bins }, (_, i) => i * 10);
+
+    histChart.update({
+      type: 'bar',
+      xLabel: `Wish number (bins of 10) · ${runs.toLocaleString('en-US')} runs in ${dt} ms · seed ${s}`,
+      yMax: Math.max(0.05, ...data),
+      series: [{ name: 'share of runs', color: '#e8c268', data }],
+      formatYTick: (v: number) => `${Math.round(v * 100)}%`,
+    } as never);
+    $('#histNote').textContent =
+      `Across ${runs.toLocaleString('en-US')} timelines, ${(batch.empiricalProb * 100).toFixed(1)}% obtained the ${targetName(p)} within ${budget} wishes - the exact figure is ${(exact * 100).toFixed(1)}%. Each bar shows which wish-window delivered it.`;
+  }
+
+  form.addEventListener('change', () => {
+    const banner = form.querySelector<HTMLInputElement>('input[name="banner"]:checked')?.value;
+    document
+      .querySelectorAll<HTMLElement>('.only-character')
+      .forEach((el) => (el.hidden = banner !== 'character'));
+    document
+      .querySelectorAll<HTMLElement>('.only-weapon')
+      .forEach((el) => (el.hidden = banner !== 'weapon'));
+  });
+
+  $('#runOne').addEventListener('click', renderSingle);
+  $('#run1k').addEventListener('click', () => renderBatch(1000));
+  $('#run10k').addEventListener('click', () => renderBatch(10000));
+
+  // one demo run on load so the page never looks broken
+  renderSingle();
+  renderBatch(1000);
+</script>

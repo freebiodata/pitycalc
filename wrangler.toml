@@ -1,0 +1,5 @@
+# Optional: deploy from your machine with `npx wrangler pages deploy`
+# (Git-integration deploys from the Cloudflare dashboard don't need this file.)
+name = "pitycalc-top"
+compatibility_date = "2026-10-11"
+pages_build_output_dir = "dist"

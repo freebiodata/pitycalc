@@ -1,0 +1,140 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Breadcrumbs from '../../components/Breadcrumbs.astro';
+import Icon from '../../components/Icon.astro';
+import { RATES_SNAPSHOT } from '../../lib/site';
+import {
+  BANNERS,
+  fiveStarProb,
+  meanWishesToFiveStar,
+  rateAtWish,
+  wishesForFiveStarConfidence,
+} from '../../lib/pity';
+
+const rows: { wish: number; rate: string; cum: string }[] = [];
+for (let w = 70; w <= 90; w++) {
+  rows.push({
+    wish: w,
+    rate: `${(rateAtWish('character', w) * 100).toFixed(1)}%`,
+    cum: `${(fiveStarProb('character', 0, w) * 100).toFixed(1)}%`,
+  });
+}
+const median = wishesForFiveStarConfidence('character', 0, 0.5);
+const mean = meanWishesToFiveStar('character', 0);
+
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: 'Genshin Soft Pity Explained: When It Starts and What It Does',
+    description:
+      'Soft pity begins at wish 74 on the character banner (≈63 on weapons) - the full rate table, the median vs average myth, and what it means for pulling.',
+    datePublished: '2026-10-11',
+    author: { '@type': 'Organization', name: 'PityHub' },
+    publisher: { '@type': 'Organization', name: 'PityHub' },
+    mainEntityOfPage: 'https://pitycalc.top/guides/soft-pity-explained/',
+  },
+];
+---
+
+<BaseLayout
+  title="Genshin Soft Pity Explained - Start at 74, Full Rate Table & Chart"
+  description={`Genshin soft pity starts at wish 74 on the character banner (rate jumps from 0.6% to about 6.6%, plus 6 points per wish) and near wish 63 on weapons. Full rate table, median vs average, and what it means for your pulls. Snapshot ${RATES_SNAPSHOT}.`}
+  path="/guides/soft-pity-explained/"
+  ogType="article"
+  jsonLd={jsonLd}
+>
+  <div class="container">
+    <Breadcrumbs crumbs={[{ href: '/guides/', label: 'Guides' }, { label: 'Soft Pity Explained' }]} />
+    <article class="prose">
+      <span class="overline">Guide</span>
+      <h1>Genshin soft pity, explained</h1>
+      <p>
+        Genshin Impact never shows you your pity counter, yet it quietly decides when your 5★
+        arrives. “Soft pity” is the community name for the invisible moment the odds snap upward - 
+        and understanding it is the difference between planning around wish 76 and pointlessly
+        hoarding for wish 90.
+      </p>
+
+      <h2><Icon name="zap" size={19} /> When does soft pity start?</h2>
+      <p>
+        On the <b>character and standard banners</b>, the per-wish 5★ rate leaves its 0.6% base at
+        wish <b>74</b> and climbs by roughly <b>6 percentage points per wish</b>. On the
+        <b>weapon banner</b> it starts around wish <b>63</b> (community estimates span 62–65) and
+        climbs about 7 points per wish, because the hard pity arrives earlier at 80. These values
+        come from millions of community-exported pulls - HoYoverse publishes only the base and
+        consolidated rates, not the curve itself.
+      </p>
+
+      <h2><Icon name="table" size={19} /> The full ramp - wish by wish</h2>
+      <p>Character banner, starting from pity 0 (soft pity from 74, hard pity at 90):</p>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>Wish #</th><th>5★ chance on this wish</th><th>Cumulative chance by now</th></tr></thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr>
+                <td class="num-cell"><b>{r.wish}</b></td>
+                <td class="num-cell">{r.rate}</td>
+                <td class="num-cell">{r.cum}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p class="note-src">
+        Computed with our documented model - the same engine powers the
+        <a href="/pity-calculator/">pity calculator</a>. Notice the cliff: at wish 74 you're 25×
+        luckier than at wish 73.
+      </p>
+
+      <h2><Icon name="percent" size={19} /> Median 76 - not average 62, not hard pity 90</h2>
+      <p>
+        Three numbers get confused constantly. The <b>average</b> distance to a 5★ is
+        {` ${mean.toFixed(1)} ` }wishes - that's what the official 1.6% consolidated rate means
+        (100 ÷ 1.6 ≈ 62.5). The <b>median</b> is {median}: half of all 5★s arrive by then, because
+        the soft-pity ramp bunches them into the 74–80 window. And <b>hard pity 90</b> is merely
+        the ceiling - under one pull in five ever sees it. If someone tells you “62 wishes is a
+        50/50 at a 5★”, they're quoting the average as if it were a coin-flip point; 62 wishes is
+        really a {(fiveStarProb('character', 0, 62) * 100).toFixed(0)}% chance.
+      </p>
+
+      <h2><Icon name="sword" size={19} /> Soft pity on the weapon banner</h2>
+      <p>
+        Weapons ramp sooner and harder: base 0.7%, soft pity near wish 63, hard pity at 80, and
+        the official consolidated rate is 1.85% - an average of
+        {` ${meanWishesToFiveStar('weapon', 0).toFixed(0)} ` }wishes per 5★. Remember the 5★ is
+        only half the story: without a fate point it's 37.5% to be your selected weapon. With one
+        fate point banked (v5.0+ rules), your next 5★ is your weapon, full stop.
+      </p>
+
+      <h2><Icon name="x-circle" size={19} /> Soft-pity myths, retired</h2>
+      <ul>
+        <li>
+          <b>“10-pulls have better rates.”</b> No - every wish rolls the same rate; the bundle
+          only pre-pays the 4★ guarantee.
+        </li>
+        <li>
+          <b>“Pity resets when a new banner starts.”</b> No - the counter (and your guarantee)
+          carries between banners of the same type.
+        </li>
+        <li>
+          <b>“Stop at soft pity, it's due.”</b> There's no due besides hard pity - each wish is
+          its own roll; soft pity just makes those rolls progressively juicier.
+        </li>
+        <li>
+          <b>“Wishes carry between banner types.”</b> Character, weapon and standard counters are
+          completely separate.
+        </li>
+      </ul>
+
+      <h2><Icon name="target" size={19} /> Use it</h2>
+      <p>
+        Enter your counter into the <a href="/pity-calculator/">pity calculator</a> to see your
+        exact odds for any budget, or flip it around with
+        <a href="/wishes-needed/">wishes needed</a> for a target confidence. Snapshot:
+        {' '}{RATES_SNAPSHOT} - details in the <a href="/methodology/">methodology</a>.
+      </p>
+    </article>
+  </div>
+</BaseLayout>
